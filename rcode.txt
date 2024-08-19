@@ -1,0 +1,64 @@
+
+library(dplyr)
+
+# 
+fdata = read.table('fulldata.txt',header = T)
+
+
+# Data preprocessing
+N = nrow(fdata)
+k=3 # state (k=3)
+event_vec = fdata[,2]
+time_vec = fdata[,1]*2
+
+# Denote function 
+Qfunc = function(beta_ = 1 , j=1){
+  lambda_ = sum(latentZ_mat[,j]*event_vec)/sum(latentZ_mat[,j]*time_vec^beta_)
+  sum(latentZ_mat[,j]*event_vec*log(lambda_)+latentZ_mat[,j]*event_vec*log(beta_)+latentZ_mat[,j]*(beta_-1)*event_vec*log(time_vec)-latentZ_mat[,j]*lambda_*time_vec^beta_+latentZ_mat[,j]*log(pi_vec[j]))
+}
+
+diffQ = function(beta_ = 1 , j=1){
+  sum(latentZ_mat[,j]*event_vec )/beta_+ 
+    sum(latentZ_mat[,j]*event_vec *log(time_vec))-
+    sum(latentZ_mat[,j]*event_vec )*sum(latentZ_mat[,j]*log(time_vec)*time_vec^beta_ )/sum(latentZ_mat[,j]*time_vec^beta_)
+}
+
+# initialize beta 
+initial_beta_vec = c(0.0001,1,2)
+beta_vec = initial_beta_vec
+
+# initialize lambda
+old_lambda_1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*time_vec^beta_vec[1])
+old_lambda_2 = sum(latentZ_mat[,2]*event_vec)/sum(latentZ_mat[,2]*time_vec^beta_vec[2])
+old_lambda_3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*time_vec^beta_vec[3])
+
+old_alpha_1 = 1/((old_lambda_1)^(1/beta_vec[1]))
+old_alpha_2 = 1/((old_lambda_2)^(1/beta_vec[2]))
+old_alpha_3 = 1/((old_lambda_3)^(1/beta_vec[3]))
+
+# initialize latentZ_mat
+initial_p1 = dweibull(time_vec,scale=old_alpha_1,shape=beta_vec[1])
+initial_p2 = dweibull(time_vec,scale=old_alpha_2,shape=beta_vec[2])
+initial_p3 = dweibull(time_vec,scale=old_alpha_3,shape=beta_vec[3])
+initial_total = initial_p1 + initial_p2 + initial_p3
+latentZ_mat = matrix(c(initial_p1/(initial_total),initial_p2/(initial_total),initial_p3/(initial_total)),nrow=N,ncol=k)
+
+# initialize pi
+pi_vec = colSums(latentZ_mat)/N
+
+
+# Obtain newbeta 
+old_beta_1 = beta_vec[1]
+new_beta_1 = old_beta_1-Qfunc(beta_=old_beta_1,j=1)/diffQ(beta_=old_beta,j=1)
+old_beta_3 = beta_vec[3]
+new_beta_3 = old_beta_3-Qfunc(beta_=old_beta_3,j=3)/diffQ(beta_=old_beta,j=3)
+new_beta_2=1
+
+beta_vec = c(new_beta_1,new_beta_2,new_beta_3)
+
+# Obtain newlambda 
+new_lambda_1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*time_vec^new_beta_1)
+new_lambda_2 = sum(latentZ_mat[,2]*event_vec)/sum(latentZ_mat[,2]*time_vec^new_beta_2)
+new_lambda_3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*time_vec^new_beta_3)
+
+
