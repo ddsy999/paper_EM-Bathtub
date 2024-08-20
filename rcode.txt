@@ -1,9 +1,19 @@
 
 library(dplyr)
-
+library(ggplot2)
 # 
-fdata = read.table('fulldata.txt',header = T)
+fdata = read.table('/Users/choijisoo/Documents/Github/fulldata.txt',header = T)
 
+# Algorithm flow 
+# initial theta : beta , lambda , pi
+
+# Obtain latentZ (by theta)
+# Obtain pi (by latentZ)
+# maximize Q (with constraints) and update theta(beta)
+
+# Obtain latentZ (by theta)
+# Obtain pi (by latentZ)
+# maximize Q (with constraints) and update theta(beta)
 
 # Data preprocessing
 N = nrow(fdata)
@@ -22,43 +32,193 @@ diffQ = function(beta_ = 1 , j=1){
     sum(latentZ_mat[,j]*event_vec *log(time_vec))-
     sum(latentZ_mat[,j]*event_vec )*sum(latentZ_mat[,j]*log(time_vec)*time_vec^beta_ )/sum(latentZ_mat[,j]*time_vec^beta_)
 }
+twiceDiffQ = function(beta_ = 1 , j=1){
+  -sum(latentZ_mat[,j]*event_vec )/beta_^2-
+    sum(latentZ_mat[,j]*event_vec )*(sum(latentZ_mat[,j]*log(time_vec)^2*time_vec^beta_)*sum(latentZ_mat[,j]*time_vec^beta_)-sum(latentZ_mat[,j]*log(time_vec)*time_vec^beta_ )^2)/(sum(latentZ_mat[,j]*time_vec^beta_)^2)
+}
 
-# initialize beta 
-initial_beta_vec = c(0.0001,1,2)
-beta_vec = initial_beta_vec
+hazardrate = function(t,beta,lambda){
+  beta*lambda *t^(beta-1)
+}
 
-# initialize lambda
-old_lambda_1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*time_vec^beta_vec[1])
-old_lambda_2 = sum(latentZ_mat[,2]*event_vec)/sum(latentZ_mat[,2]*time_vec^beta_vec[2])
-old_lambda_3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*time_vec^beta_vec[3])
+# initial theta 
+## initial beta , lambda , pi 
+initial_beta = c(0.1,1,5)
+initial_pi = rep(1/k, k)
+(5*100^(5-1))^(1/5)
+1/(55^5)
+initial_lambda = c(1000,2,0.0000001)
 
-old_alpha_1 = 1/((old_lambda_1)^(1/beta_vec[1]))
-old_alpha_2 = 1/((old_lambda_2)^(1/beta_vec[2]))
-old_alpha_3 = 1/((old_lambda_3)^(1/beta_vec[3]))
+beta_vec = initial_beta
+pi_vec = initial_pi
+lambda_vec = initial_lambda
+alphas_vec = 1 / (lambda_vec ^ (1 / beta_vec)) # obtain alpha by lambda 
 
-# initialize latentZ_mat
-initial_p1 = dweibull(time_vec,scale=old_alpha_1,shape=beta_vec[1])
-initial_p2 = dweibull(time_vec,scale=old_alpha_2,shape=beta_vec[2])
-initial_p3 = dweibull(time_vec,scale=old_alpha_3,shape=beta_vec[3])
-initial_total = initial_p1 + initial_p2 + initial_p3
-latentZ_mat = matrix(c(initial_p1/(initial_total),initial_p2/(initial_total),initial_p3/(initial_total)),nrow=N,ncol=k)
 
-# initialize pi
+
+# Obtain latentZ (by theta)
+weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*dweibull(time_vec, scale = alphas_vec[i], shape = beta_vec[i]))
+weibull_pdf_sum = Reduce("+", weibull_pdfs)
+latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
+
+
+# maximize Q (with constraints) and update theta(beta)
+
+# Obtain newbeta
+update_beta_vec = sapply(1:k, function(i) beta_vec[i]-diffQ(beta_=beta_vec[i],j=i)/twiceDiffQ(beta_=beta_vec[i],j=i))
+beta_vec = c(update_beta_vec[1],1,update_beta_vec[3])
+
+# Obtain newlambda 
+lambda_vec = sapply(1:k ,  function(i) sum(latentZ_mat[,i]*event_vec)/sum(latentZ_mat[,i]*time_vec^beta_vec[i]))
+
+# Obtain newalpha
+alphas_vec = 1 / (lambda_vec ^ (1 / beta_vec)) # obtain alpha by lambda 
+
+# Obtain latentZ (by theta)
+weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*dweibull(time_vec, scale = alphas_vec[i], shape = beta_vec[i]))
+weibull_pdf_sum = Reduce("+", weibull_pdfs)
+latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
+
+
+# Obtain newPi 
 pi_vec = colSums(latentZ_mat)/N
 
 
-# Obtain newbeta 
-old_beta_1 = beta_vec[1]
-new_beta_1 = old_beta_1-Qfunc(beta_=old_beta_1,j=1)/diffQ(beta_=old_beta,j=1)
-old_beta_3 = beta_vec[3]
-new_beta_3 = old_beta_3-Qfunc(beta_=old_beta_3,j=3)/diffQ(beta_=old_beta,j=3)
-new_beta_2=1
+latentZ_mat
+beta_vec
+pi_vec
 
-beta_vec = c(new_beta_1,new_beta_2,new_beta_3)
 
-# Obtain newlambda 
-new_lambda_1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*time_vec^new_beta_1)
-new_lambda_2 = sum(latentZ_mat[,2]*event_vec)/sum(latentZ_mat[,2]*time_vec^new_beta_2)
-new_lambda_3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*time_vec^new_beta_3)
+
+hv1 = hazardrate(t=unique(time_vec),beta=beta_vec[1],lambda = lambda_vec[1])
+hv2 = hazardrate(t=unique(time_vec),beta=beta_vec[2],lambda = lambda_vec[2])
+hv3 = hazardrate(t=unique(time_vec),beta=beta_vec[3],lambda = lambda_vec[3])
+
+ggplot(data=data.frame(time=unique(time_vec),hvalue1=hv1,hvalue2=hv2,hvalue3=hv3))+
+  geom_point(aes(time,hvalue1),color='red')+
+  geom_point(aes(time,hvalue2),color='blue')+
+  geom_point(aes(time,hvalue3),color='black')
+
+
+
+
+
+
+# 최대 반복 횟수 및 수렴 기준 설정
+max_iter <- 100
+tolerance <- 1e-6
+
+# 반복 수행
+for (iter in 1:max_iter) {
+  
+  # 이전 값 저장 (수렴 체크를 위해)
+  old_beta_vec <- beta_vec
+  old_lambda_vec <- lambda_vec
+  old_pi_vec <- pi_vec
+  
+  # Obtain new beta
+  update_beta_vec <- sapply(1:k, function(i) beta_vec[i] - diffQ(beta_=beta_vec[i], j=i) / twiceDiffQ(beta_=beta_vec[i], j=i))
+  beta_vec <- c(update_beta_vec[1], 1, update_beta_vec[3])
+  
+  # Obtain new lambda 
+  lambda_vec <- sapply(1:k, function(i) sum(latentZ_mat[,i] * event_vec) / sum(latentZ_mat[,i] * time_vec^beta_vec[i]))
+  
+  # Obtain new alpha
+  alphas_vec <- 1 / (lambda_vec ^ (1 / beta_vec))
+  
+  # Obtain new Pi 
+  pi_vec <- colSums(latentZ_mat) / N
+  
+  # Obtain latentZ (by updated theta)
+  weibull_pdfs <- lapply(1:k, function(i) pi_vec[i] * dweibull(time_vec, scale = alphas_vec[i], shape = beta_vec[i]))
+  weibull_pdf_sum <- Reduce("+", weibull_pdfs)
+  latentZ_mat <- do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
+  
+  # 수렴 확인 (이전 값과의 차이)
+  beta_diff <- max(abs(beta_vec - old_beta_vec))
+  lambda_diff <- max(abs(lambda_vec - old_lambda_vec))
+  pi_diff <- max(abs(pi_vec - old_pi_vec))
+  
+  if (max(beta_diff, lambda_diff, pi_diff) < tolerance) {
+    cat("Convergence achieved after", iter, "iterations.\n")
+    break
+  }
+  
+  if (iter == max_iter) {
+    cat("Maximum iterations reached without convergence.\n")
+  }
+}
+
+# 최종 결과 출력
+cat("Final beta:", beta_vec, "\n")
+cat("Final lambda:", lambda_vec, "\n")
+cat("Final pi:", pi_vec, "\n")
+
+
+
+
+
+
+
+
+
+
+
+library(nloptr)
+
+# 목적 함수 정의
+objective_function <- function(beta) {
+  -Qfunc(beta[1], j=1) - Qfunc(beta[2], j=2) - Qfunc(beta[3], j=3)
+}
+
+# 목적 함수의 도함수 정의
+objective_gradient <- function(beta) {
+  grad_1 <- -diffQ(beta[1], j=1)
+  grad_2 <- -diffQ(beta[2], j=2)
+  grad_3 <- -diffQ(beta[3], j=3)
+  return(c(grad_1, grad_2, grad_3))
+}
+
+# 제약 조건 함수 정의
+constraint_function <- function(beta) {
+  return(c(beta[1] - 1,  # beta_1 < 1 -> beta_1 - 1 < 0
+           -beta[2] + 1, # beta_2 = 1 -> beta_2 - 1 = 0
+           1 - beta[3])) # beta_3 > 1 -> 1 - beta_3 < 0
+}
+
+# 제약 조건의 도함수 (그라디언트) 정의
+constraint_gradient <- function(beta) {
+  grad1 <- c(1, 0, 0)  # beta_1 < 1에 대한 그라디언트
+  grad2 <- c(0, -1, 0) # beta_2 = 1에 대한 그라디언트
+  grad3 <- c(0, 0, -1) # beta_3 > 1에 대한 그라디언트
+  return(rbind(grad1, grad2, grad3))
+}
+
+# 초기 추정값
+beta_init <- c(0.01, 1, 10)
+
+# 최적화 수행
+result <- nloptr(x0 = beta_init, 
+                 eval_f = objective_function, 
+                 eval_grad_f = objective_gradient,
+                 eval_g_ineq = function(beta) constraint_function(beta)[c(1, 3)], # 불평등 제약
+                 eval_jac_g_ineq = function(beta) constraint_gradient(beta)[c(1, 3), ], # 불평등 제약 그라디언트
+                 eval_g_eq = function(beta) constraint_function(beta)[2],         # 평등 제약
+                 eval_jac_g_eq = function(beta) constraint_gradient(beta)[2, ],   # 평등 제약 그라디언트
+                 opts = list(algorithm = "NLOPT_LD_SLSQP", xtol_rel = 1e-6))
+
+# 최적화 결과 출력
+print(result$solution)
+
+
+
+
+
+
+
+
+
+
+
 
 
