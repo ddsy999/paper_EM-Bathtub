@@ -1,12 +1,42 @@
 
 library(dplyr)
 library(ggplot2)
-# 
+library(patchwork)
+
+# How to Identify a Bathtub Hazard Rate
+# 107p
+
 fdata = read.table('fulldata.txt',header = T)
+# fdata = read.table('fulldata_rightcensored.txt',header = T)
+
+# initial theta 
+## initial beta , lambda , pi 
+# initial_pi = rep(1/k, k)
+
+# 
+initial_beta = c(0.05,1,3)
+initial_lambda = c(1,0.03,0.000003)
+initial_pi = c(5,10,1)
+initial_pi = initial_pi / sum(initial_pi)
+
+
+beta_vec = initial_beta
+pi_vec = initial_pi
+lambda_vec = initial_lambda
+
+
+((lambda_vec[1]*beta_vec[1])/(lambda_vec[2]))^(1/(1-beta_vec[1]))
+(lambda_vec[2]/(lambda_vec[3]*beta_vec[3]))^(1/(beta_vec[3]-1))
+
+(beta_vec[1]*lambda_vec[1]/lambda_vec[2])^(1/(2-beta_vec[1]))
 
 
 
-
+# Obtain latentZ (by theta)
+weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
+weibull_pdf_sum = Reduce("+", weibull_pdfs)
+latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
+latentZ_mat
 
 # Algorithm flow 
 # initial theta : beta , lambda , pi
@@ -22,13 +52,18 @@ fdata = read.table('fulldata.txt',header = T)
 # Data preprocessing
 N = nrow(fdata)
 k=3 # state (k=3)
-event_vec = fdata[,2]
-time_vec = fdata[,1]
+event_vec = fdata[,2] %>% as.numeric()
+time_vec = fdata[,1]%>% as.numeric()
 
-# Denote function 
+##### Denote function ####
 Qfunc = function(beta_ = 1 , j=1){
   lambda_ = sum(latentZ_mat[,j]*event_vec)/sum(latentZ_mat[,j]*time_vec^beta_)
   sum(latentZ_mat[,j]*event_vec*log(lambda_)+latentZ_mat[,j]*event_vec*log(beta_)+latentZ_mat[,j]*(beta_-1)*event_vec*log(time_vec)-latentZ_mat[,j]*lambda_*time_vec^beta_+latentZ_mat[,j]*log(pi_vec[j]))
+}
+
+sumQfunc = function(beta ){
+  beta=beta_vec
+  Qfunc(beta_=beta_vec[1],j=1)+Qfunc(beta_=beta_vec[2],j=2)+Qfunc(beta_=beta_vec[3],j=3)
 }
 
 diffQ = function(beta_ = 1 , j=1){
@@ -36,6 +71,7 @@ diffQ = function(beta_ = 1 , j=1){
     sum(latentZ_mat[,j]*event_vec *log(time_vec))-
     sum(latentZ_mat[,j]*event_vec )*sum(latentZ_mat[,j]*log(time_vec)*time_vec^beta_ )/sum(latentZ_mat[,j]*time_vec^beta_)
 }
+
 twiceDiffQ = function(beta_ = 1 , j=1){
   -sum(latentZ_mat[,j]*event_vec )/beta_^2-
     sum(latentZ_mat[,j]*event_vec )*(sum(latentZ_mat[,j]*log(time_vec)^2*time_vec^beta_)*sum(latentZ_mat[,j]*time_vec^beta_)-sum(latentZ_mat[,j]*log(time_vec)*time_vec^beta_ )^2)/(sum(latentZ_mat[,j]*time_vec^beta_)^2)
@@ -49,26 +85,14 @@ weibull_func = function(t,beta,lambda){
   lambda*beta*t^(beta-1)*exp(-lambda*t^beta)
 }
 
-# initial theta 
-## initial beta , lambda , pi 
-initial_beta = c(0.1,1,1.5)
-initial_pi = rep(1/k, k)
-initial_lambda = c(0.1,0.01,0.01)
-
-beta_vec = initial_beta
-pi_vec = initial_pi
-lambda_vec = initial_lambda
-alphas_vec = 1 / (lambda_vec ^ (1 / beta_vec)) # obtain alpha by lambda 
-
-
+plot(weibull_func(1:100,beta_vec[3],lambda_vec[3]))
 
 # Obtain latentZ (by theta)
-weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*dweibull(time_vec, scale = alphas_vec[i], shape = beta_vec[i]))
+weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
 weibull_pdf_sum = Reduce("+", weibull_pdfs)
 latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
 
-
-# maximize Q (with constraints) and update theta(beta)
+##### maximize Q (with constraints) and update theta(beta) #####
 
 # Obtain newbeta
 update_beta_vec = sapply(1:k, function(i) beta_vec[i]-diffQ(beta_=beta_vec[i],j=i)/twiceDiffQ(beta_=beta_vec[i],j=i))
@@ -77,24 +101,13 @@ beta_vec = c(update_beta_vec[1],1,update_beta_vec[3])
 # Obtain newlambda 
 lambda_vec = sapply(1:k ,  function(i) sum(latentZ_mat[,i]*event_vec)/sum(latentZ_mat[,i]*time_vec^beta_vec[i]))
 
-# Obtain newalpha
-alphas_vec = 1 / (lambda_vec ^ (1 / beta_vec)) # obtain alpha by lambda 
-
-# Obtain latentZ (by theta)
-# weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*dweibull(time_vec, scale = alphas_vec[i], shape = beta_vec[i]))
-weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
-weibull_pdf_sum = Reduce("+", weibull_pdfs)
-latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
-
-
 # Obtain newPi 
 pi_vec = colSums(latentZ_mat)/N
 
-
-latentZ_mat
-beta_vec
-pi_vec
-alphas_vec
+# Obtain latentZ (by theta)
+weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
+weibull_pdf_sum = Reduce("+", weibull_pdfs)
+latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
 
 
 hv1 = hazardrate(t=unique(time_vec),beta=beta_vec[1],lambda = lambda_vec[1])
@@ -102,72 +115,97 @@ hv2 = hazardrate(t=unique(time_vec),beta=beta_vec[2],lambda = lambda_vec[2])
 hv3 = hazardrate(t=unique(time_vec),beta=beta_vec[3],lambda = lambda_vec[3])
 
 
-ggplot(data=data.frame(time=unique(time_vec),hvalue1=hv1,hvalue2=hv2,hvalue3=hv3))+
-  geom_point(aes(time,hvalue1),color='red')+geom_point(aes(time,hvalue2),color='blue')
+# 첫 번째 ggplot
+plot1 <- ggplot(data=data.frame(time=unique(time_vec),hvalue1=hv1,hvalue2=hv2,hvalue3=hv3)) +
+  geom_point(aes(time, hvalue1), color='red') +
+  geom_point(aes(time, hvalue2), color='blue')
 
-ggplot(data=data.frame(time=unique(time_vec),hvalue1=hv1,hvalue2=hv2,hvalue3=hv3))+
-  geom_point(aes(time,hvalue2),color='blue')+
-  geom_point(aes(time,hvalue3),color='black')
+# 두 번째 ggplot
+plot2 <- ggplot(data=data.frame(time=unique(time_vec),hvalue1=hv1,hvalue2=hv2,hvalue3=hv3)) +
+  geom_point(aes(time, hvalue2), color='blue') +
+  geom_point(aes(time, hvalue3), color='black')
 
-ggplot(data=data.frame(time=unique(time_vec),hvalue1=hv1,hvalue2=hv2,hvalue3=hv3))+
-  geom_point(aes(time,hvalue1),color='red')+
-  geom_point(aes(time,hvalue2),color='blue')+
-  geom_point(aes(time,hvalue3),color='black')+
-  geom_point(data=hazard_rate_df , aes(time,hazard_rate),color='green')
+# 두 개의 그림을 결합하여 하나로 표시
+combined_plot <- plot1 + plot2
 
-ggplot(data=data.frame(time=unique(time_vec),hvalue1=hv1,hvalue2=hv2,hvalue3=hv3))+
-  geom_point(aes(time,hvalue1),color='red')+
-  geom_point(aes(time,hvalue2),color='blue')+
-  geom_point(aes(time,hvalue3),color='black')
+# 결합된 그림을 출력
+print(combined_plot)
+
+latentZ_mat %>% round(2)
+beta_vec
+lambda_vec
+sumQfunc(beta_vec)
+diffQ(beta_=1,j=1)
 
 
 
-DecisionBoundary = function(t,j=1){
-(pi_vec[j]/pi_vec[2])*(beta_vec[j]/beta_vec[2])*(lambda_vec[j]/lambda_vec[2])*t^(beta_vec[j]-1)*exp(-lambda_vec[j]*t^{beta_vec[j]}+lambda_vec[2]*t)
-}
+
+
 
 DecisionBoundary = function(t,j=1){
   (pi_vec[j]/pi_vec[2])*(beta_vec[j]/beta_vec[2])*(lambda_vec[j]/lambda_vec[2])*t^(beta_vec[j]-1)*exp(-lambda_vec[j]*t^{beta_vec[j]}+lambda_vec[2]*t)
 }
 
-plot(DecisionBoundary(1:300,1))
-plot(DecisionBoundary(1:300,3))
+plot(DecisionBoundary(1:(max(time_vec)*1.1),j=1))
+plot(DecisionBoundary(1:(max(time_vec)*1.1),j=3))
 
-# 시간별 위험률 계산 함수
-calculate_hazard_rate <- function(data) {
-  # 데이터가 시간 순으로 정렬되어 있다고 가정합니다
-  time_points <- unique(data$time)
-  hazard_rates <- numeric(length(time_points))
+
+
+ggplot(data = data.frame(time = unique(time_vec), hvalue1 = hv1, hvalue2 = hv2, hvalue3 = hv3)) +
+  geom_point(aes(time, hvalue1), color = 'red') +
+  geom_line(aes(time, hvalue1), color = 'red') +   # hvalue1에 대해 선 추가
+  geom_point(aes(time, hvalue2), color = 'blue') +
+  geom_line(aes(time, hvalue2), color = 'blue') +  # hvalue2에 대해 선 추가
+  geom_point(aes(time, hvalue3), color = 'black') +
+  geom_line(aes(time, hvalue3), color = 'black')   # hvalue3에 대해 선 추가
+
+
+
+
+
+
+
+
+
+
+
+calculate_hazard_rate <- function(time, event) {
+  # 데이터프레임 생성
+  df <- data.frame(time = time, event = event)
   
-  for (i in seq_along(time_points)) {
-    time <- time_points[i]
+  # 시간 순으로 정렬
+  df <- df[order(df$time), ]
+  
+  # 고유한 시간 포인트와 그에 따른 고장 수를 계산
+  unique_times <- unique(df$time)
+  hazard_rates <- numeric(length(unique_times))
+  
+  for (i in seq_along(unique_times)) {
+    current_time <- unique_times[i]
     
-    # 특정 시간까지 생존한 개체 수
-    at_risk <- sum(data$time >= time)
+    # 해당 시간까지 생존한 개체 수 (risk set)
+    at_risk <- sum(df$time >= current_time)
     
-    # 해당 시간에 사건이 발생한 개체 수
-    events <- sum(data$time == time & data$event == 1)
+    # 해당 시간에서 고장이 발생한 개체 수
+    events <- sum(df$time == current_time & df$event == 1)
     
-    # 위험률 계산
+    # 고장률 계산
     hazard_rates[i] <- events / at_risk
   }
   
-  return(data.frame(time = time_points, hazard_rate = hazard_rates))
+  return(data.frame(time = unique_times, hazard_rate = hazard_rates))
 }
+# 사용 예시
 
-# 시간별 위험률 계산
-hazard_rate_df <- calculate_hazard_rate(fdata)
 
-# 결과 출력
+hazard_rate_df <- calculate_hazard_rate(fdata$time, fdata$event)
 print(hazard_rate_df)
 
-
-hazard_rate_df %>% ggplot(aes(time,hazard_rate))+geom_point()
-
-
-
-
-
+ggplot(hazard_rate_df, aes(x = time, y = hazard_rate)) +
+  geom_line(color = "blue") +
+  geom_point(color = "red") +
+  labs(title = "Hazard Rate Over Time", x = "Time", y = "Hazard Rate") +
+  theme_minimal()
 
 
 
@@ -181,29 +219,29 @@ hazard_rate_df %>% ggplot(aes(time,hazard_rate))+geom_point()
 
 
 
+# TTT 곡선을 계산하는 함수
+calculate_ttt <- function(time, event) {
+  # 고장 시간만 고려 (event == 1 인 경우)
+  sorted_time <- sort(time[event == 1])
+  
+  n <- length(sorted_time)
+  ttt_values <- cumsum(sorted_time) / sum(sorted_time)
+  ttt_times <- (1:n) / n
+  
+  return(data.frame(ttt_times = ttt_times, ttt_values = ttt_values))
+}
 
+# TTT 곡선을 그리는 함수
+plot_ttt <- function(time, event) {
+  ttt_data <- calculate_ttt(time, event)
+  
+  library(ggplot2)
+  ggplot(ttt_data, aes(x = ttt_times, y = ttt_values)) +
+    geom_line(color = "blue") +
+    geom_point(color = "red") +
+    labs(title = "Total Time on Test (TTT) Plot", x = "Normalized Time", y = "Cumulative TTT") +
+    theme_minimal()
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# 사용 예시
+plot_ttt(fdata$time, fdata$event)
