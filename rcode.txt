@@ -3,78 +3,14 @@ library(dplyr)
 library(ggplot2)
 library(patchwork)
 
-# How to Identify a Bathtub Hazard Rate
-# 107p
-
-fdata = read.table('fulldata.txt',header = T)
-# fdata = read.table('fulldata_rightcensored.txt',header = T)
-
-# initial theta 
-## initial beta , lambda , pi 
-# initial_pi = rep(1/k, k)
-
-# 
-initial_beta = c(0.05,1,3)
-initial_lambda = c(1,0.03,0.000003)
-initial_pi = c(5,10,1)
-initial_pi = initial_pi / sum(initial_pi)
-
-
-beta_vec = initial_beta
-pi_vec = initial_pi
-lambda_vec = initial_lambda
-
-
-((lambda_vec[1]*beta_vec[1])/(lambda_vec[2]))^(1/(1-beta_vec[1]))
-(lambda_vec[2]/(lambda_vec[3]*beta_vec[3]))^(1/(beta_vec[3]-1))
-
-(beta_vec[1]*lambda_vec[1]/lambda_vec[2])^(1/(2-beta_vec[1]))
-
-
-
-# Obtain latentZ (by theta)
-weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
-weibull_pdf_sum = Reduce("+", weibull_pdfs)
-latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
-latentZ_mat
-
-# Algorithm flow 
-# initial theta : beta , lambda , pi
-
-# Obtain latentZ (by theta)
-# Obtain pi (by latentZ)
-# maximize Q (with constraints) and update theta(beta)
-
-# Obtain latentZ (by theta)
-# Obtain pi (by latentZ)
-# maximize Q (with constraints) and update theta(beta)
-
-# Data preprocessing
-N = nrow(fdata)
-k=3 # state (k=3)
-event_vec = fdata[,2] %>% as.numeric()
-time_vec = fdata[,1]%>% as.numeric()
 
 ##### Denote function ####
-Qfunc = function(beta_ = 1 , j=1){
-  lambda_ = sum(latentZ_mat[,j]*event_vec)/sum(latentZ_mat[,j]*time_vec^beta_)
-  sum(latentZ_mat[,j]*event_vec*log(lambda_)+latentZ_mat[,j]*event_vec*log(beta_)+latentZ_mat[,j]*(beta_-1)*event_vec*log(time_vec)-latentZ_mat[,j]*lambda_*time_vec^beta_+latentZ_mat[,j]*log(pi_vec[j]))
+Qfunc = function(beta = 1 ,lambda,latentZ_mat, j=1){
+  sum(latentZ_mat[,j]*event_vec*log(lambda)+latentZ_mat[,j]*event_vec*log(beta)+latentZ_mat[,j]*(beta-1)*event_vec*log(time_vec)-latentZ_mat[,j]*lambda*time_vec^beta+latentZ_mat[,j]*log(pi_vec[j]))
 }
 
-sumQfunc = function(beta ){
-  beta=beta_vec
-  Qfunc(beta_=beta_vec[1],j=1)+Qfunc(beta_=beta_vec[2],j=2)+Qfunc(beta_=beta_vec[3],j=3)
-}
-
-diffQ = function(beta_ = 1 , j=1){
-  sum(latentZ_mat[,j]*event_vec )/beta_+ 
-    sum(latentZ_mat[,j]*event_vec *log(time_vec))-
-    sum(latentZ_mat[,j]*event_vec )*sum(latentZ_mat[,j]*log(time_vec)*time_vec^beta_ )/sum(latentZ_mat[,j]*time_vec^beta_)
-}
-
-twiceDiffQ = function(beta_ = 1 , j=1){
-  -sum(latentZ_mat[,j]*event_vec )/beta_^2-
-    sum(latentZ_mat[,j]*event_vec )*(sum(latentZ_mat[,j]*log(time_vec)^2*time_vec^beta_)*sum(latentZ_mat[,j]*time_vec^beta_)-sum(latentZ_mat[,j]*log(time_vec)*time_vec^beta_ )^2)/(sum(latentZ_mat[,j]*time_vec^beta_)^2)
+sumQfunc = function(beta_vec,lambda_vec,latentZ_mat ){
+  Qfunc(beta=beta_vec[1],lambda_vec[1],latentZ_mat,j=1)+Qfunc(beta=beta_vec[2],lambda_vec[2],latentZ_mat,j=2)+Qfunc(beta=beta_vec[3],lambda_vec[3],latentZ_mat,j=3)
 }
 
 hazardrate = function(t,beta,lambda){
@@ -85,163 +21,211 @@ weibull_func = function(t,beta,lambda){
   lambda*beta*t^(beta-1)*exp(-lambda*t^beta)
 }
 
-plot(weibull_func(1:100,beta_vec[3],lambda_vec[3]))
+diffB = function(beta,lambda,latentZ_mat,j){
+  if (beta == 0) beta <- 1e-8  # beta가 0이면 1e-8로 대체
+  sum(latentZ_mat[,j]*event_vec/beta + latentZ_mat[,j]*event_vec*log(time_vec)-latentZ_mat[,j]*lambda*time_vec^beta*log(time_vec))
+}
 
-# Obtain latentZ (by theta)
-weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
-weibull_pdf_sum = Reduce("+", weibull_pdfs)
-latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
+diffL = function(beta,lambda,latentZ_mat,j){
+  sum(latentZ_mat[,j]*(event_vec/lambda - time_vec^beta))
+}
 
-##### maximize Q (with constraints) and update theta(beta) #####
-
-# Obtain newbeta
-update_beta_vec = sapply(1:k, function(i) beta_vec[i]-diffQ(beta_=beta_vec[i],j=i)/twiceDiffQ(beta_=beta_vec[i],j=i))
-beta_vec = c(update_beta_vec[1],1,update_beta_vec[3])
-
-# Obtain newlambda 
-lambda_vec = sapply(1:k ,  function(i) sum(latentZ_mat[,i]*event_vec)/sum(latentZ_mat[,i]*time_vec^beta_vec[i]))
-
-# Obtain newPi 
-pi_vec = colSums(latentZ_mat)/N
-
-# Obtain latentZ (by theta)
-weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
-weibull_pdf_sum = Reduce("+", weibull_pdfs)
-latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
+diff_vec = function(beta,lambda,latentZ_mat,j){
+  matrix(c(diffB(beta[j],lambda[j],latentZ_mat,j),diffL(beta[j],lambda[j],latentZ_mat,j)),2,1)
+}
 
 
-hv1 = hazardrate(t=unique(time_vec),beta=beta_vec[1],lambda = lambda_vec[1])
-hv2 = hazardrate(t=unique(time_vec),beta=beta_vec[2],lambda = lambda_vec[2])
-hv3 = hazardrate(t=unique(time_vec),beta=beta_vec[3],lambda = lambda_vec[3])
+HessianQB2 = function(beta,lambda,latentZ_mat,j){
+  -sum(latentZ_mat[,j]*event_vec )/(beta^2)-sum(latentZ_mat[,j]*time_vec^beta*(log(time_vec))^2)*lambda
+}
 
+HessianQL2 = function(beta,lambda,latentZ_mat,j){
+  -1/(lambda^2) * sum(latentZ_mat[,j]*event_vec )
+}
 
-# 첫 번째 ggplot
-plot1 <- ggplot(data=data.frame(time=unique(time_vec),hvalue1=hv1,hvalue2=hv2,hvalue3=hv3)) +
-  geom_point(aes(time, hvalue1), color='red') +
-  geom_point(aes(time, hvalue2), color='blue')
+HessianQBL = function(beta,lambda,latentZ_mat,j){
+  - sum(latentZ_mat[,j]* time_vec^beta *log(time_vec) )
+}
 
-# 두 번째 ggplot
-plot2 <- ggplot(data=data.frame(time=unique(time_vec),hvalue1=hv1,hvalue2=hv2,hvalue3=hv3)) +
-  geom_point(aes(time, hvalue2), color='blue') +
-  geom_point(aes(time, hvalue3), color='black')
-
-# 두 개의 그림을 결합하여 하나로 표시
-combined_plot <- plot1 + plot2
-
-# 결합된 그림을 출력
-print(combined_plot)
-
-latentZ_mat %>% round(2)
-beta_vec
-lambda_vec
-sumQfunc(beta_vec)
-diffQ(beta_=1,j=1)
-
-
-
-
-
-
-DecisionBoundary = function(t,j=1){
+DecisionBoundary = function(t,beta_vec,lambda_vec,j=1){
   (pi_vec[j]/pi_vec[2])*(beta_vec[j]/beta_vec[2])*(lambda_vec[j]/lambda_vec[2])*t^(beta_vec[j]-1)*exp(-lambda_vec[j]*t^{beta_vec[j]}+lambda_vec[2]*t)
 }
 
-plot(DecisionBoundary(1:(max(time_vec)*1.1),j=1))
-plot(DecisionBoundary(1:(max(time_vec)*1.1),j=3))
 
 
-
-ggplot(data = data.frame(time = unique(time_vec), hvalue1 = hv1, hvalue2 = hv2, hvalue3 = hv3)) +
-  geom_point(aes(time, hvalue1), color = 'red') +
-  geom_line(aes(time, hvalue1), color = 'red') +   # hvalue1에 대해 선 추가
-  geom_point(aes(time, hvalue2), color = 'blue') +
-  geom_line(aes(time, hvalue2), color = 'blue') +  # hvalue2에 대해 선 추가
-  geom_point(aes(time, hvalue3), color = 'black') +
-  geom_line(aes(time, hvalue3), color = 'black')   # hvalue3에 대해 선 추가
-
-
-
-
-
-
-
-
-
-
-
-calculate_hazard_rate <- function(time, event) {
-  # 데이터프레임 생성
-  df <- data.frame(time = time, event = event)
-  
-  # 시간 순으로 정렬
-  df <- df[order(df$time), ]
-  
-  # 고유한 시간 포인트와 그에 따른 고장 수를 계산
-  unique_times <- unique(df$time)
-  hazard_rates <- numeric(length(unique_times))
-  
-  for (i in seq_along(unique_times)) {
-    current_time <- unique_times[i]
-    
-    # 해당 시간까지 생존한 개체 수 (risk set)
-    at_risk <- sum(df$time >= current_time)
-    
-    # 해당 시간에서 고장이 발생한 개체 수
-    events <- sum(df$time == current_time & df$event == 1)
-    
-    # 고장률 계산
-    hazard_rates[i] <- events / at_risk
-  }
-  
-  return(data.frame(time = unique_times, hazard_rate = hazard_rates))
-}
-# 사용 예시
-
-
-hazard_rate_df <- calculate_hazard_rate(fdata$time, fdata$event)
-print(hazard_rate_df)
-
-ggplot(hazard_rate_df, aes(x = time, y = hazard_rate)) +
-  geom_line(color = "blue") +
-  geom_point(color = "red") +
-  labs(title = "Hazard Rate Over Time", x = "Time", y = "Hazard Rate") +
-  theme_minimal()
-
-
-
-
-
-
-
-
-
-
-
-
-
-# TTT 곡선을 계산하는 함수
-calculate_ttt <- function(time, event) {
-  # 고장 시간만 고려 (event == 1 인 경우)
-  sorted_time <- sort(time[event == 1])
-  
-  n <- length(sorted_time)
-  ttt_values <- cumsum(sorted_time) / sum(sorted_time)
-  ttt_times <- (1:n) / n
-  
-  return(data.frame(ttt_times = ttt_times, ttt_values = ttt_values))
+# 
+Maximize_theta2 = function(beta=1,lambda=1,latentZ,j=2){
+  new_lambda = sum(latentZ[,j]*event_vec)/sum(latentZ[,j]*time_vec)
+  return(c(beta,new_lambda))
 }
 
-# TTT 곡선을 그리는 함수
-plot_ttt <- function(time, event) {
-  ttt_data <- calculate_ttt(time, event)
+
+Maximize_BarrierMethod_theta1 = function(beta,lambda,latentZ,bp=1,j=1){
   
-  library(ggplot2)
-  ggplot(ttt_data, aes(x = ttt_times, y = ttt_values)) +
-    geom_line(color = "blue") +
-    geom_point(color = "red") +
-    labs(title = "Total Time on Test (TTT) Plot", x = "Normalized Time", y = "Cumulative TTT") +
-    theme_minimal()
+  # Old
+  theta = matrix(c(beta,lambda),2,1)
+  Lfuncion_Value = bp*Qfunc(beta,lambda,latentZ,j)-log(beta)-log(1-beta)-log(lambda)
+  
+  # Diff vec
+  temp_diff_vec = c(bp*diffB(beta,lambda,latentZ_mat,j)+(2*beta-1)/(beta*(1-beta)),
+                    bp*diffL(beta,lambda,latentZ_mat,j)-1/(lambda))
+  # Diff Hessian
+  temp_B2 = bp*HessianQB2(beta,lambda,latentZ_mat,j)+1/(beta^2)+1/(1-beta)^2
+  temp_L2 = bp*HessianQL2(beta,lambda,latentZ_mat,j)+1/lambda^2
+  temp_BL = bp*HessianQBL(beta,lambda,latentZ_mat,j)
+  temp_Hessian = c(temp_B2,temp_BL,temp_BL,temp_L2)
+  
+  diff_vec = matrix(temp_diff_vec,2,1)
+  Hessian_mat = matrix(temp_Hessian,2,2)
+  
+  # Update theta
+  newtheta = theta - solve(Hessian_mat)%*%diff_vec
+  return(newtheta)
 }
 
-# 사용 예시
-plot_ttt(fdata$time, fdata$event)
+Maximize_BarrierMethod_theta3 = function(beta,lambda,latentZ,bp=1,j=3){
+  
+  # Old
+  theta = matrix(c(beta,lambda),2,1)
+  Lfuncion_Value = bp*Qfunc(beta,lambda,latentZ,j)-log(beta-1)-log(lambda)
+  
+  # Diff vec
+  temp_diff_vec = c(bp*diffB(beta,lambda,latentZ_mat,j)-1/(beta-1),
+                    bp*diffL(beta,lambda,latentZ_mat,j)-1/(lambda))
+  # Diff Hessian
+  temp_B2 = bp*HessianQB2(beta,lambda,latentZ_mat,j)+1/(beta-1)^2
+  temp_L2 = bp*HessianQL2(beta,lambda,latentZ_mat,j)+1/lambda^2
+  temp_BL = bp*HessianQBL(beta,lambda,latentZ_mat,j)
+  temp_Hessian = c(temp_B2,temp_BL,temp_BL,temp_L2)
+  
+  diff_vec = matrix(temp_diff_vec,2,1)
+  Hessian_mat = matrix(temp_Hessian,2,2)
+  
+  # Update theta
+  newtheta = theta - solve(Hessian_mat)%*%diff_vec
+  return(newtheta)
+}
+
+
+############
+# How to Identify a Bathtub Hazard Rate
+# 107p
+
+fdata = read.table('Aarest_data.txt',header = T)
+# fdata = read.table('CNC_data.txt',header = T)
+
+# Data preprocessing
+N = nrow(fdata)
+k=3 
+event_vec = fdata[,2] %>% as.numeric()
+time_vec = fdata[,1]%>% as.numeric()
+time_vec = time_vec/max(time_vec)
+tot=1e-6
+
+## initial beta , lambda , pi 
+# initial_beta = c(0.5,1,5)
+# initial_lambda = c(1.5,0.00003,3)
+# initial_pi = c(1,6,1)
+
+initial_beta = c(0.7,1,5)
+initial_lambda = c(0.1,2,3)
+initial_pi = c(1,100,1)
+initial_pi = initial_pi / sum(initial_pi)
+
+
+
+# 7개의 열을 가진 빈 data.frame 생성
+theta_df <- data.frame(matrix(ncol = 7, nrow = 0))
+column_names <- c("beta1", "lambda1", "beta2", "lambda2", "beta3", "lambda3", "sumQfunc")
+colnames(theta_df) <- column_names
+
+## Parameters initialize 
+beta_vec = initial_beta
+pi_vec = initial_pi
+lambda_vec = initial_lambda
+
+
+
+for(i in 1:100){
+
+#### E-step ####
+# Obtain latentZ (by theta)
+weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
+weibull_pdf_sum = Reduce("+", weibull_pdfs)
+latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum))
+#####
+
+#### M-step ####
+# maximize Q (with constraints) and update theta(beta) #
+# Obtain newPi 
+pi_vec = colSums(latentZ_mat)/N
+# new_theta1 = Maximize_BarrierMethod_theta1(beta_vec[1],lambda_vec[1],latentZ_mat,bp=2,j=1)
+# new_theta2 = Maximize_theta2(beta_vec[2],lambda_vec[2],latentZ_mat,j=2)
+# new_theta3 = Maximize_BarrierMethod_theta3(beta_vec[3],lambda_vec[3],latentZ_mat,bp=2,j=3)
+# 
+# beta_vec = c(new_theta1[1],new_theta2[1],new_theta3[1])
+# lambda_vec = c(new_theta1[2],new_theta2[2],new_theta3[2])
+# 
+# beta_vec
+# lambda_vec
+
+
+
+
+# uniroot 함수 실행
+result_beta1 = uniroot(diffB, interval = c(0, 1) , lambda = lambda_vec[1], latentZ_mat = latentZ_mat, j = 1)
+result1_lambda1 = uniroot(diffL, interval = c(1e-8, 10000) , beta = beta_vec[1], latentZ_mat = latentZ_mat, j = 1)
+
+result1_lambda2 = uniroot(diffL, interval = c(1e-8, 10000) , beta = beta_vec[2], latentZ_mat = latentZ_mat, j = 2)
+
+result_beta3 = uniroot(diffB, interval = c(1+1e-8 , 10000) , lambda = lambda_vec[3], latentZ_mat = latentZ_mat, j = 3)
+result1_lambda3 = uniroot(diffL, interval = c(1e-8, 10000) , beta = beta_vec[3], latentZ_mat = latentZ_mat, j = 3)
+
+beta_vec[1] = result_beta1$root
+beta_vec[2] = 1
+beta_vec[3] = result_beta3$root
+
+lambda_vec[1] = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^beta_vec[2]))
+lambda_vec[2] = Maximize_theta2(beta=1 , lambda=1, latentZ_mat,j=2)[2]
+lambda_vec[3] = result1_lambda3$root
+
+theta_df = rbind(theta_df,c(beta_vec[1],lambda_vec[1],beta_vec[2],lambda_vec[2],beta_vec[3],lambda_vec[3],sumQfunc(beta_vec,lambda_vec,latentZ_mat)))
+colnames(theta_df) <- column_names
+}
+
+plot(theta_df[,'sumQfunc'])
+plot(theta_df[,'beta1'])
+plot(theta_df[,'beta3'])
+
+plot(theta_df[,'lambda1'])
+plot(theta_df[,'lambda2'])
+plot(theta_df[,'lambda3'])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
