@@ -129,6 +129,18 @@ scale_rows_to_sum1 <- function(mat) {
 fdata = read.table('Aarest_data.txt',header = T)
 # fdata = read.table('CNC_data.txt',header = T)
 
+# # r 비율로 event를 0으로 랜덤하게 변경
+# r <- 0.2  # 예시 비율
+# 
+# # 변경할 인덱스 선택
+# change_indices <- sample(1:nrow(fdata), size = floor(r * nrow(fdata)))
+# 
+# # 선택된 인덱스의 event 값을 0으로 변경
+# fdata$event[change_indices] <- 0
+# write.table(fdata,"Aarest_data_censored4.txt")
+
+
+
 # Data preprocessing
 N = nrow(fdata)
 k=3 
