@@ -6,12 +6,12 @@ library(patchwork)
 
 ####### Denote function ####
 
-Qfunc = function(beta = 1 ,lambda,latentZ_mat, j=1){
-  if(min(event_vec)==1){
-    sum(latentZ_mat[,j]*log(lambda))+sum(latentZ_mat[,j]*log(beta))+sum(latentZ_mat[,j]*(beta-1)*log(time_vec))-sum(latentZ_mat[,j]*lambda*time_vec^beta)+sum(latentZ_mat[,j]*log(pi_vec[j]))    
-  }else{
-  sum(latentZ_mat[,j]*event_vec*log(lambda))+sum(latentZ_mat[,j]*event_vec*log(beta))+sum(latentZ_mat[,j]*(beta-1)*event_vec*log(time_vec))-sum(latentZ_mat[,j]*lambda*time_vec^beta)+sum(latentZ_mat[,j]*log(pi_vec[j]))
-  }
+Qfunc = function(beta = 1 ,lambda, latentZ_mat, j=1){
+  sum(latentZ_mat[,j]*event_vec*log(lambda)) +
+    sum(latentZ_mat[,j]*event_vec*log(beta)) +
+    sum(latentZ_mat[,j]*(beta-1)*event_vec*log(time_vec)) -
+    sum(latentZ_mat[,j]*lambda*time_vec^beta) +
+    sum(latentZ_mat[,j]*log(pi_vec[j]))
 }
 
 Qfunc_onlyB = function(beta = 1 ,lambda,latentZ_mat, j=1){
@@ -32,6 +32,12 @@ weibull_func = function(t,beta,lambda){
 
 diffB = function(beta,lambda,latentZ_mat,j){
   sum(latentZ_mat[,j]*event_vec/beta + latentZ_mat[,j]*event_vec*log(time_vec)-latentZ_mat[,j]*lambda*time_vec^beta*log(time_vec))
+}
+
+diffB_onlyB = function(beta,lambda,latentZ_mat,j){
+  sum(latentZ_mat[,j]*event_vec/beta) + 
+    sum(latentZ_mat[,j]*event_vec*log(time_vec))-
+    sum(latentZ_mat[,j]*event_vec)*sum(latentZ_mat[,j]*(time_vec^beta)*log(time_vec))/sum(latentZ_mat[,j]*(time_vec^beta))
 }
 
 diffL = function(beta,lambda,latentZ_mat,j){
@@ -137,7 +143,13 @@ scale_rows_to_sum1 <- function(mat) {
 # fdata = read.table('Aarest_data.txt',header = T)
 # fdata = read.table('CNC_data.txt',header = T)
 
-fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+# fdata = read.table('Aarest_data.txt',header = T)
+fdata = read.table('Aarest_data_endCensored.txt',header = T)
+# fdata = read.table('FRT_censord.txt',header = T)
+
+
+# fdata = read.table('Aarest_data_censored_rot2.txt',header = T)
 # fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot1.txt',header = T)
 # fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot2.txt',header = T)
 # fdata = read.table('/Users/choijisoo/Documents/Github/FRT_censord.txt',header = T)
@@ -148,16 +160,6 @@ fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = 
 
 
 
-# # r 비율로 event를 0으로 랜덤하게 변경
-# r <- 0.2  # 예시 비율
-# 
-# # 변경할 인덱스 선택
-# change_indices <- sample(1:nrow(fdata), size = floor(r * nrow(fdata)))
-# 
-# # 선택된 인덱스의 event 값을 0으로 변경
-# fdata$event[change_indices] <- 0
-# write.table(fdata,"Aarest_data_censored4.txt")
-
 
 
 # Data preprocessing
@@ -165,8 +167,7 @@ N = nrow(fdata)
 k=3 
 event_vec = fdata[,2] %>% as.numeric()
 time_vec = fdata[,1]%>% as.numeric()
-time_vec = time_vec/max(time_vec*1.1)
-time_vec = time_vec
+time_vec = time_vec/max(time_vec)*10
 tot=1e-6
 
 # 7개의 열을 가진 빈 data.frame 생성
@@ -181,8 +182,6 @@ colnames(theta_df) <- column_names
 # initial_pi = c(1,6,1)
 
 initial_beta = c(0.7,1,5)
-# initial_lambda = c(1,2,1)
-# initial_lambda = c(0.01,2,3)
 initial_pi = c(1,4,1)
 initial_pi = initial_pi / sum(initial_pi)
 
@@ -192,13 +191,26 @@ pi_vec = initial_pi
 
 ## Parameter initialize LatantVariable 
 latentZ_mat = data.frame(matrix(0,N,k))
-phase1_latent = sapply( time_vec, function(i) exp(-i)) %>% scale_to_max
-phase2_latent = 1/2
-phase3_latent = sapply( time_vec, function(i) exp(i)) %>% scale_to_max
-latentZ_mat[,1]=phase1_latent
-latentZ_mat[,2]=phase2_latent
-latentZ_mat[,3]=phase3_latent
-latentZ_mat = scale_rows_to_sum1(latentZ_mat)
+# N을 3으로 나누어 각 구간의 크기 계산 (정수가 아닐 경우도 대응)
+n1 = floor(N / 3)
+n2 = floor(2 * N / 3)
+n3 = N
+# 첫 번째 열: 처음부터 n1개의 값이 1, 나머지는 0
+latentZ_mat[1:n1, 1] = 1
+# 두 번째 열: n1+1에서 n2까지의 값이 1, 나머지는 0
+latentZ_mat[(n1 + 1):n2, 2] = 1
+# 세 번째 열: 마지막 n2+1에서 N까지의 값이 1, 그 이전은 0
+latentZ_mat[(n2 + 1):n3, 3] = 1
+
+
+# phase1_latent = sapply( time_vec, function(i) exp(-10*i)) %>% scale_to_max
+# phase2_latent = 1/2
+# phase3_latent = sapply( time_vec, function(i) exp(10*i)) %>% scale_to_max
+# latentZ_mat[,1]=phase1_latent
+# latentZ_mat[,2]=phase2_latent
+# latentZ_mat[,3]=phase3_latent
+# latentZ_mat = scale_rows_to_sum1(latentZ_mat)
+
 
 ## Parameter initialize Lambda 
 # lambda_vec = initial_lambda
@@ -216,7 +228,7 @@ theta_vec = lapply(1:3, function(i) matrix(c(beta_vec[i],lambda_vec[i]),2,1))
 
 
 
-for( i in 1:2000){
+for( i in 1:20000){
   print(i)
   
   #### E-step ####
@@ -239,14 +251,15 @@ for( i in 1:2000){
   objective_function_1<- function(beta, lambda, latentZ_mat, j=1,bp) {
     Q_value <- Qfunc(beta, lambda, latentZ_mat, j)
     # 음수로 반환하여 최대화를 위해 minimize 방향으로 조정
-    return(-(Qfunc(beta,lambda,latentZ_mat,j)+(log(beta)+log(1-beta)+log(lambda))/bp))
+    return(-(Qfunc_onlyB(beta,lambda,latentZ_mat,j)+(log(beta)+log(1-beta)+log(lambda))/bp))
+    
     # return(-(Qfunc_onlyB(beta,lambda,latentZ_mat,j)+(log(beta)+log(1-beta)+log(lambda))/bp))
   }
   # beta3를 최대화할 함수 정의
   objective_function_3<- function(beta, lambda, latentZ_mat, j=3,bp) {
     Q_value <- Qfunc(beta, lambda, latentZ_mat, j)
     # 음수로 반환하여 최대화를 위해 minimize 방향으로 조정
-    return(-(Qfunc(beta,lambda,latentZ_mat,j)+(log(beta-1)+log(lambda))/bp))
+    return(-(Qfunc_onlyB(beta,lambda,latentZ_mat,j)+(log(beta-1)+log(lambda))/bp))
     # return(-(Qfunc_onlyB(beta,lambda,latentZ_mat,j)+(log(beta-1)+log(lambda))/bp))
   }
   
@@ -254,6 +267,9 @@ for( i in 1:2000){
   
   lambda_iter1 = lambda_vec[1]
   lambda_iter3 = lambda_vec[3]
+  
+  old_beta1 = beta_vec[1]
+  old_beta3 = beta_vec[3]
   bp=1
   for( m in 1:1000){
     bp=1.01*bp
@@ -263,19 +279,25 @@ for( i in 1:2000){
     # new_lambda1 = optimize(objective_function_1, interval = c(0.001, 99999),
     #                        beta = new_beta1, latentZ_mat = latentZ_mat, j = 1,bp, maximum = F)$minimum
     
-    new_beta3 = optimize(objective_function_3, interval = c(1.001,99999),
+    new_beta3 = optimize(objective_function_3, interval = c(1.001,99),
                          lambda = lambda_iter3, latentZ_mat = latentZ_mat, j = 3,bp, maximum = F)$minimum
     
     # new_lambda3 = optimize(objective_function_3, interval = c(0.001, 99999),
     #                        beta = new_beta3, latentZ_mat = latentZ_mat, j = 3,bp, maximum = F)$minimum
     
-    if(min(event_vec)==1){
-      lambda_iter1 = sum(latentZ_mat[,1])/sum(latentZ_mat[,1]*(time_vec^new_beta1))
-      lambda_iter3 = sum(latentZ_mat[,3])/sum(latentZ_mat[,3]*(time_vec^new_beta3))
-    }else{
-      lambda_iter1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^new_beta1))
-      lambda_iter3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*(time_vec^new_beta3))  
+    # if(min(event_vec)==1){
+    #   lambda_iter1 = sum(latentZ_mat[,1])/sum(latentZ_mat[,1]*(time_vec^new_beta1))
+    #   lambda_iter3 = sum(latentZ_mat[,3])/sum(latentZ_mat[,3]*(time_vec^new_beta3))
+    # }else{
+    #   lambda_iter1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^new_beta1))
+    #   lambda_iter3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*(time_vec^new_beta3))  
+    # }
+    if((old_beta1-new_beta1)^2+(old_beta3-new_beta3)^2<0.0005){
+      print("break")
+      break
     }
+    old_beta1 = new_beta1
+    old_beta3 = new_beta3
     
   }
   
@@ -309,18 +331,30 @@ for( i in 1:2000){
 }
 
 
+# beta에 대해 diffB가 0이 되는 값을 찾기
+find_beta <- function(lambda, latentZ_mat, j) {
+  # uniroot를 사용하여 적절한 beta 값을 찾음
+  result <- uniroot(function(beta) diffB_onlyB(beta, lambda, latentZ_mat, j), 
+                    interval = c(0.001, 10))  # 검색할 beta 구간 설정
+  return(result$root)
+}
+find_beta(lambda=0, latentZ_mat, j=1)
 
 
 
 
-BBL=seq(0.0001,1,0.0001)
+
+BBL=seq(0.1,2,0.0001)
 theaa = NULL
-
+AA=NULL
+n=1
 for( i in 1:length(BBL)){
-  theaa=c(theaa,Qfunc_onlyB(BBL[i],lambda_vec[1],latentZ_mat,j=1) )
+  theaa=c(theaa,Qfunc(BBL[i],lambda_vec[n],latentZ_mat,j=n) )
+  AA = c(AA,diffB_onlyB(BBL[i],lambda=0, latentZ_mat, j=1))
 }
 
 data.frame(Beta = BBL,Q=theaa) %>% ggplot(aes(x=Beta,y=Q))+geom_point()
+data.frame(Beta = BBL,Q=AA) %>% ggplot(aes(x=Beta,y=Q))+geom_point()
 
 
 # Hazard rate 
@@ -347,6 +381,7 @@ print(combined_plot)
 
 plot(theta_df[,'sumQfunc'])
 plot(theta_df[50:nrow(theta_df),'beta1'])
+plot(theta_df[,'beta1'])
 plot(theta_df[,'beta2'])
 plot(theta_df[,'beta3'])
 
@@ -354,7 +389,8 @@ plot(theta_df[,'lambda1'])
 plot(theta_df[,'lambda2'])
 plot(theta_df[,'lambda3'])
 
-
+latentZ_mat %>% round(3)
+fdata
 pi_vec
 lambda_vec
 
@@ -450,4 +486,3 @@ hazard_estimated <- function(t) {
   (shape / scale) * (t / scale)^(shape - 1)
 }
 hazard_estimated(unique(time_vec))
-
