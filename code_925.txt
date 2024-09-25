@@ -39,18 +39,19 @@ diffB = function(beta,lambda,latentZ_mat,j){
 
 
 diffB_onlyB = function(beta,lambda,latentZ_mat,j){
-  sum(latentZ_mat[,j]*event_vec/beta) + 
+  sum(latentZ_mat[,j]*event_vec)/beta + 
     sum(latentZ_mat[,j]*log(time_vec))-
     sum(latentZ_mat[,j]*event_vec)*sum(latentZ_mat[,j]*(time_vec^beta)*log(time_vec))/sum(latentZ_mat[,j]*(time_vec^beta))
 }
 
 diffB_onlyBeta1_with_Barrier = function(beta,lambda,latentZ_mat,j,bp){
-  diffB_onlyB(beta,lambda,latentZ_mat,j)-(log(beta)+log(1-beta))/bp
+  diffB_onlyB(beta,lambda,latentZ_mat,j)-(1/(beta)-1/(1-beta))/bp
 }
 
 
 diffB_onlyBeta3_with_Barrier = function(beta,lambda,latentZ_mat,j,bp){
-  diffB_onlyB(beta,lambda,latentZ_mat,j)-(log(beta-1))/bp
+  # diffB_onlyB(beta,lambda,latentZ_mat,j)-1/(beta-1)/bp
+  diffB_onlyB(beta,lambda,latentZ_mat,j)-1/(beta-1)/bp
 }
 
 
@@ -81,21 +82,105 @@ hessianB_onlyBeta1_with_Barrier <- function(beta, lambda, latentZ_mat, j, bp) {
   return(total_hessian)
 }
 
+hessianB_onlyBeta3_with_Barrier <- function(beta, lambda, latentZ_mat, j, bp) {
+  # 배리어 항에 대한 2차 미분
+  barrier_hessian <- 1 / (beta-1)^2
+  # barrier_hessian = 0
+  # 목적 함수 diffB_onlyB에 대한 2차 미분 계산 (Q''(beta))
+  # 각 부분에 대한 2차 도함수를 계산
+  event_sum <- sum(latentZ_mat[,j]*event_vec)
+  log_time_sum <- sum(latentZ_mat[,j]*log(time_vec))
+  time_beta_log_sum <- sum(latentZ_mat[,j]*(time_vec^beta)*log(time_vec))
+  time_beta_sum <- sum(latentZ_mat[,j]*(time_vec^beta))
+  
+  # diffB_onlyB에서의 2차 미분 계산
+  hessian_Q <- (- event_sum * 
+                  ((sum(latentZ_mat[,j]*(time_vec^beta)*(log(time_vec)^2)) * time_beta_sum - 
+                      time_beta_log_sum^2) / time_beta_sum^2)) -event_sum / beta^2
+  
+  # 최종 헤시안은 목적 함수의 2차 도함수와 배리어 함수의 2차 도함수를 합한 것
+  total_hessian <- hessian_Q + barrier_hessian / bp
+  
+  return(total_hessian)
+}
 
-newton_onlyBeta1 <- function(beta, lambda, latentZ_mat, j, bp) {
-  # 1차 미분 (gradient)
+
+
+newton_onlyBeta1 <- function(beta, lambda, latentZ_mat, j, bp, alpha = 0.25, beta_factor = 0.5) {
+  # 1차 도함수 (Gradient)
   gradient <- diffB_onlyBeta1_with_Barrier(beta, lambda, latentZ_mat, j, bp)
   
-  # 2차 미분 (hessian)
+  # 2차 도함수 (Hessian)
   hessian <- hessianB_onlyBeta1_with_Barrier(beta, lambda, latentZ_mat, j, bp)
   
-  # 뉴턴-랩슨 갱신: beta_new = beta - gradient / hessian
-  beta_new <- beta - gradient / hessian
-  beta_new = min(beta_new,0.9999)
+  # 뉴턴-랩슨 스텝
+  step <- gradient / hessian
+  
+  # 초기 스텝 사이즈
+  step_size <- 1
+  
+  # 목표 함수 값
+  # Q_current <- Q_total(beta, lambda, latentZ_mat, j, bp, event_vec, time_vec)
+  
+  # 뉴턴-랩슨 갱신
+  beta_new <- beta - step_size * step
+  
+  # 백트래킹 라인 서치
+  while (beta_new <= 0 || beta_new >= 0.9999) {
+    # 스텝 사이즈 감소
+    step_size <- step_size * beta_factor
+    
+    # 최소 스텝 사이즈 제한 (무한 루프 방지)
+    if (step_size < 1e-8) {
+      warning("Step size became too small. Update may not satisfy constraints.")
+      break
+    }
+
+    # 갱신된 스텝 사이즈로 beta_new 계산
+    beta_new <- beta - step_size * step
+    beta_new = min(beta_new,0.999)
+  }
+  
   return(beta_new)
 }
 
 
+newton_onlyBeta3 <- function(beta, lambda, latentZ_mat, j, bp, alpha = 0.25, beta_factor = 0.5) {
+  # 1차 도함수 (Gradient)
+  gradient <- diffB_onlyBeta3_with_Barrier(beta, lambda, latentZ_mat, j, bp)
+  
+  # 2차 도함수 (Hessian)
+  hessian <- hessianB_onlyBeta3_with_Barrier(beta, lambda, latentZ_mat, j, bp)
+  
+  # 뉴턴-랩슨 스텝
+  step <- gradient / hessian
+  
+  # 초기 스텝 사이즈
+  step_size <- 1
+  
+  # 목표 함수 값
+  # Q_current <- Q_total(beta, lambda, latentZ_mat, j, bp, event_vec, time_vec)
+  
+  # 뉴턴-랩슨 갱신
+  beta_new <- beta - step_size * step
+  
+  # 백트래킹 라인 서치
+  while (beta_new <= 0) {
+    # 스텝 사이즈 감소
+    step_size <- step_size * beta_factor
+    
+    # 최소 스텝 사이즈 제한 (무한 루프 방지)
+    if (step_size < 1e-8) {
+      warning("Step size became too small. Update may not satisfy constraints.")
+      break
+    }
+    
+    # 갱신된 스텝 사이즈로 beta_new 계산
+    beta_new <- beta - step_size * step
+  }
+  
+  return(beta_new)
+}
 
 
 
@@ -200,10 +285,11 @@ scale_rows_to_sum1 <- function(mat) {
 
 
 # fdata = read.table('Aarest_data.txt',header = T)
+fdata = read.table('Aarest_data_censored_rot1.txt',header = T)
 # fdata = read.table('Aarest_data_endCensored.txt',header = T)
 # fdata = read.table('FRT_censord.txt',header = T)
 
-fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
 # fdata[27,2]=0
 # fdata[10,2]=0
 # fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot1.txt',header = T)
@@ -231,56 +317,19 @@ time_vec = time_vec/max(time_vec)
 tot=1e-6
 
 # 7개의 열을 가진 빈 data.frame 생성
-theta_df <- data.frame(matrix(ncol = 9, nrow = 0))
-column_names <- c("beta1", "lambda1", "beta2", "lambda2", "beta3", "lambda3", "sumQfunc","diffB_beta1","diffB_beta3")
+theta_df <- data.frame(matrix(ncol = 11, nrow = 0))
+column_names <- c("beta1", "lambda1", "beta2", "lambda2", "beta3", "lambda3", "sumQfunc","diffB_beta1","diffB_beta3","bp","EM iter")
 colnames(theta_df) <- column_names
 
 ## initial beta , lambda , pi 
-# initial_beta = c(0.5,1,62)
-# initial_lambda = c(1.5,0.00003,3)
-# initial_lambda = c(2.7,1.69,1.68)
-# initial_pi = c(1,6,1)
- 
 initial_beta = c(0.5,1,5)
-initial_pi = c(1,8,1)
+initial_pi = c(1,2,1)
 initial_pi = initial_pi / sum(initial_pi)
 
 ## Parameters initialize beta,pi
 beta_vec = initial_beta
 pi_vec = initial_pi
 
-# ## Parameter initialize LatantVariable 
-# latentZ_mat = data.frame(matrix(0,N,k))
-
-# N을 3으로 나누어 각 구간의 크기 계산 (정수가 아닐 경우도 대응)
-# n1 = (N/3) %>% floor     # 첫 번째 구간
-# n2 = (N/3) %>% floor # 두 번째 구간
-# n3 = N %>% floor                  # 세 번째 구간은 전체 길이 N까지 자동으로 설정
-# # 첫 번째 열: 처음부터 n1개의 값이 1, 나머지는 0
-# latentZ_mat[1:n1, 1] = 1
-# 
-# # 두 번째 열: n1+1에서 n2까지의 값이 1, 나머지는 0
-# latentZ_mat[(n1 + 1):n2, 2] = 1
-# 
-# # 세 번째 열: 마지막 n2+1에서 N까지의 값이 1, 그 이전은 0
-# latentZ_mat[(n2 + 1):n3, 3] = 1
-
-
-# # 첫 번째 열: 감소하는 값
-# latentZ_mat[, 1] <- seq(1, 0, length.out = N)
-# 
-# # 두 번째 열: 상수 값 (중간값을 상수로 설정)
-# latentZ_mat[, 2] <- 10/ k
-# 
-# # 세 번째 열: 증가하는 값
-# latentZ_mat[, 3] <- seq(0, 1, length.out = N)
-# 
-# # 각 행의 합을 1로 만들기 위해 row-wise로 정규화
-# latentZ_mat <- t(apply(latentZ_mat, 1, function(x) x / sum(x)))
-# 
-# # data.frame으로 다시 변환 (필요시)
-# latentZ_mat <- as.data.frame(latentZ_mat)
-# latentZ_mat %>% round(2)
 
 
 ## Parameter initialize LatantVariable 
@@ -302,142 +351,133 @@ if(min(event_vec)==1){
 }
 
 
-# weibull_pdfs = lapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
-# weibull_pdf_sum = Reduce("+", weibull_pdfs)
-# latentZ_mat = do.call(cbind, lapply(weibull_pdfs, function(pdf) pdf / weibull_pdf_sum)) 
-# latentZ_mat %>% round(2)
+latentZ_mat
 
+
+#### E-step ####
+# Obtain latentZ (by theta)
+weibull_pdfs = sapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
+weibull_pdf_sum = rowSums(weibull_pdfs)
+latentZ_mat = weibull_pdfs/weibull_pdf_sum
+################
 ## Parameter theta
-theta_vec = lapply(1:3, function(i) matrix(c(beta_vec[i],lambda_vec[i]),2,1) %>% round(2))
 
-
-
-sum(latentZ_mat[,3])/sum(latentZ_mat[,3]*(time_vec^beta_vec[3]))
-
-aaaa = NULL
-bp=100
-for( i in 1:200000){
-  print( paste0( "EM iteration : " , i))
+old_sumQ = sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+bp=0.1
+# bp=1
+for( i in 1:100000){
   
-  #### E-step ####
-  # Obtain latentZ (by theta)
-  print(paste0(c("Beta :",beta_vec%>% round(2)," Bp : " , bp %>% round(2)) ))
-  weibull_pdfs = sapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
-  weibull_pdf_sum = rowSums(weibull_pdfs)
-  latentZ_mat = weibull_pdfs/weibull_pdf_sum
-  ################
+  print( paste0( "EM iteration : " , i ," ",sumQfunc(beta_vec,lambda_vec,latentZ_mat) ))
   print(paste0(c("Lambda : " , lambda_vec)))
-  # print(latentZ_mat)
-  # 
+  print(paste0(c("Beta :",beta_vec%>% round(2)," Bp : " , bp %>% round(1)) ))
+  
   #### M-step ####
   pi_vec = colSums(latentZ_mat)/N
-  
   ################
   
   
-  # Update theta
+  # theta
   
-  # beta1를 최대화할 함수 정의
-  objective_function_1<- function(beta, lambda, latentZ_mat, j=1,bp) {
-    Q_value <- Qfunc(beta, lambda, latentZ_mat, j)
-    # 음수로 반환하여 최대화를 위해 minimize 방향으로 조정
-    lambda=sum(latentZ_mat[,j])/sum(latentZ_mat[,j]*(time_vec^beta))
-    return(-bp*Qfunc_onlyB(beta,lambda,latentZ_mat,j)-(log(beta)+log(1-beta)+log(lambda)))
-    
-    # return(-(Qfunc_onlyB(beta,lambda,latentZ_mat,j)+(log(beta)+log(1-beta)+log(lambda))/bp))
-  }
-  # beta3를 최대화할 함수 정의
-  objective_function_3<- function(beta, lambda, latentZ_mat, j=3,bp) {
-    Q_value <- Qfunc(beta, lambda, latentZ_mat, j)
-    # 음수로 반환하여 최대화를 위해 minimize 방향으로 조정
-    lambda=sum(latentZ_mat[,j])/sum(latentZ_mat[,j]*(time_vec^beta))
-    return(-Qfunc_onlyB(beta,lambda,latentZ_mat,j)-(log(beta-1)+log(lambda))/bp)
-    # return(-(Qfunc_onlyB(beta,lambda,latentZ_mat,j)+(log(beta-1)+log(lambda))/bp))
-  }
+  NR_old_beta1 = beta_vec[1]
+  NR_old_beta3 = beta_vec[3]
+  
+  
+  print(c("NR  :",beta_vec," bp :",bp))
   
   
   
-  lambda_iter1 = lambda_vec[1]
-  lambda_iter3 = lambda_vec[3]
-  
-  old_beta1 = beta_vec[1]
-  old_beta3 = beta_vec[3]
-  bp=10
-  for( m in 1:10000){
-    bp=0.9999*bp
-    # new_beta1 = optimize(objective_function_1, interval = c(0.001, 0.99),
-    #                      lambda = lambda_iter1, latentZ_mat = latentZ_mat, j = 1,bp, maximum = F)$minimum
+  bp=1.01*bp
+
+  # N-R method 
+  # bp=0.1
+  for( m in 1:1000){
+    # bp=1.01*bp
+    NR_new_beta1 = newton_onlyBeta1(NR_old_beta1, lambda=lambda_vec[1], latentZ_mat, j=1, bp) 
+    NR_new_beta2 = 1 
+    NR_new_beta3 = newton_onlyBeta3(NR_old_beta3, lambda=lambda_vec[3], latentZ_mat, j=3, bp) 
     
-    # new_lambda1 = optimize(objective_function_1, interval = c(0.001, 99999),
-    #                        beta = new_beta1, latentZ_mat = latentZ_mat, j = 1,bp, maximum = F)$minimum
+    # new_beta3 = optimize(objective_function_3, interval = c(1.001,99),
+    #                      lambda = lambda_iter3, latentZ_mat = latentZ_mat, j = 3,bp, maximum = F)$minimum
     
-    new_beta1 = newton_onlyBeta1(beta_vec[1], lambda=lambda_iter1, latentZ_mat, j=1, bp) 
-      
-    new_beta3 = optimize(objective_function_3, interval = c(1.001,99),
-                         lambda = lambda_iter3, latentZ_mat = latentZ_mat, j = 3,bp, maximum = F)$minimum
+    # print((old_beta1-new_beta1)^2+(old_beta3-new_beta3)^2)
+    if((NR_old_beta1-NR_new_beta1)^2+(NR_old_beta3-NR_new_beta3)^2<0.001){ 
+      print(c("N-R converge",m))
+      break
+    }
     
-    # new_lambda3 = optimize(objective_function_3, interval = c(0.001, 99999),
-    #                        beta = new_beta3, latentZ_mat = latentZ_mat, j = 3,bp, maximum = F)$minimum
-    
-    # if(min(event_vec)==1){
-    #   lambda_iter1 = sum(latentZ_mat[,1])/sum(latentZ_mat[,1]*(time_vec^new_beta1))
-    #   lambda_iter3 = sum(latentZ_mat[,3])/sum(latentZ_mat[,3]*(time_vec^new_beta3))
-    # }else{
-    #   lambda_iter1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^new_beta1))
-    #   lambda_iter3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*(time_vec^new_beta3))
-    # }
-    # if((old_beta1-new_beta1)^2+(old_beta3-new_beta3)^2<0.000001  ){
-    #   print("break")
-    #   print(m)
-    #   break
-    # }
-    if(bp<0.0001||abs(old_beta1-new_beta1)<0.0001) {
-      print(paste0("Barrier ",m , " bp :",bp))
-      break}
-    old_beta1 = new_beta1
-    old_beta3 = new_beta3
-    
+    # Update N-R Parameter
+    NR_old_beta1 = NR_new_beta1
+    NR_old_beta2 = 1
+    NR_old_beta3 = NR_new_beta3
   }
   
+  NR_new_lambda1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^NR_new_beta1))
+  NR_new_lambda2 = sum(latentZ_mat[,2]*event_vec)/sum(latentZ_mat[,2]*(time_vec^NR_new_beta2))
+  NR_new_lambda3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*(time_vec^NR_new_beta3))  
+  
+  # NR_old_para
+  NR_new_lambda = c(NR_new_lambda1,NR_new_lambda2,NR_new_lambda3)
+  NR_new_beta = c(NR_new_beta1,1,NR_new_beta3)
+  
+  # Candidate parameter 
+  NR_sumQ = sumQfunc(NR_new_beta,NR_new_lambda,latentZ_mat)
+  
+  difference = abs(old_sumQ - NR_sumQ)
   
   # Update Parameter 
-  beta_vec[1] = new_beta1
-  beta_vec[2] = 1
-  beta_vec[3] = new_beta3
+  if(NR_sumQ-old_sumQ>0.00001){
+    print("Update Para")
+    print(NR_sumQ-old_sumQ)
+    beta_vec[1] = NR_old_beta1
+    beta_vec[2] = 1
+    beta_vec[3] = NR_old_beta3
+    
+    lambda_vec[1] = NR_new_lambda1
+    lambda_vec[2] = NR_new_lambda2
+    lambda_vec[3] = NR_new_lambda3
+    
   
-  if(min(event_vec)==1){
-    lambda_vec[1] = sum(latentZ_mat[,1])/sum(latentZ_mat[,1]*(time_vec^beta_vec[1]))
-    lambda_vec[2] = sum(latentZ_mat[,2])/sum(latentZ_mat[,2]*(time_vec^beta_vec[2]))
-    lambda_vec[3] = sum(latentZ_mat[,3])/sum(latentZ_mat[,3]*(time_vec^beta_vec[3]))
+    theta_df = rbind(theta_df,
+                     c(beta_vec[1],lambda_vec[1],beta_vec[2],lambda_vec[2],beta_vec[3],lambda_vec[3],sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+                       ,diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) ,
+                       diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) ,
+                       bp,i))
+
+    
+    old_sumQ = NR_sumQ
+    
+    print(paste0("Diff_Beta1:",diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1)))
+    if(diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) %>% abs+
+       diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) %>% abs<0.0001){
+      print("Converge By diffB beta1 beta3")
+      break
+    }
+    
+    #### E-step ####
+    # Obtain latentZ (by theta)
+    weibull_pdfs = sapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
+    weibull_pdf_sum = rowSums(weibull_pdfs)
+    latentZ_mat = weibull_pdfs/weibull_pdf_sum
+    ################
+    
+    
   }else{
-    lambda_vec[1] = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^beta_vec[1]))
-    lambda_vec[2] = sum(latentZ_mat[,2]*event_vec)/sum(latentZ_mat[,2]*(time_vec^beta_vec[2]))
-    lambda_vec[3] = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*(time_vec^beta_vec[3]))  
+    # stop rule 
+    difference = abs(old_sumQ - NR_sumQ)
+    if(difference<0.00001){
+      print( "############# Stop rule : SumQ difference #################")
+      break
+    }
   }
-  
-  
-  theta_vec = lapply(1:3, function(i) matrix(c(beta_vec[i],lambda_vec[i]),2,1))
-  theta_df = rbind(theta_df,
-                   c(beta_vec[1],lambda_vec[1],beta_vec[2],lambda_vec[2],beta_vec[3],lambda_vec[3],sumQfunc(beta_vec,lambda_vec,latentZ_mat)
-                     ,diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) ,
-                      diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) ))
-  
-  # stop rule 
-  difference = (theta_vec[[1]][1]-beta_vec[1])^2+(theta_vec[[2]][1]-beta_vec[2])^2+(theta_vec[[3]][1]-beta_vec[3])^2+
-    (theta_vec[[1]][2]-lambda_vec[1])^2+(theta_vec[[2]][2]-lambda_vec[2])^2+(theta_vec[[3]][2]-lambda_vec[3])^2
-  
-  aaaa = c(aaaa,diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1))
-  if(sum(latentZ_mat[,1])==0) next
-  if(diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) %>% abs+
-     diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) %>% abs<0.00001){
-    break
-  }
-  
-  # if(bp>10000000) break
+
+
+  # print(NR_sumQ-old_sumQ)
 }
 
 
 # plot(aaaa)
+
+
 
 
 
@@ -479,18 +519,18 @@ find_beta(lambda=0, latentZ_mat, j=1)
 
 
 
-BBL=seq(0.1,2,0.0001)
-theaa = NULL
-AA=NULL
-n=1
-for( i in 1:length(BBL)){
-  theaa=c(theaa,Qfunc(BBL[i],lambda_vec[n],latentZ_mat,j=n) )
-  AA = c(AA,diffB_onlyB(BBL[i],lambda=0, latentZ_mat, j=1))
-}
-
-data.frame(Beta = BBL,Q=theaa) %>% ggplot(aes(x=Beta,y=Q))+geom_point()
-data.frame(Beta = BBL,Q=AA) %>% ggplot(aes(x=Beta,y=Q))+geom_point()
-
+# BBL=seq(0.1,2,0.0001)
+# theaa = NULL
+# AA=NULL
+# n=1
+# for( i in 1:length(BBL)){
+#   theaa=c(theaa,Qfunc(BBL[i],lambda_vec[n],latentZ_mat,j=n) )
+#   AA = c(AA,diffB_onlyB(BBL[i],lambda=0, latentZ_mat, j=1))
+# }
+# 
+# data.frame(Beta = BBL,Q=theaa) %>% ggplot(aes(x=Beta,y=Q))+geom_point()
+# data.frame(Beta = BBL,Q=AA) %>% ggplot(aes(x=Beta,y=Q))+geom_point()
+# 
 
 
 colnames(theta_df) <- column_names
