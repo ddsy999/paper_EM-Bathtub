@@ -1,0 +1,210 @@
+
+############
+# How to Identify a Bathtub Hazard Rate
+# 107p
+
+# fdata = read.table('Aarest_data.txt',header = T)
+# fdata = read.table('CNC_data.txt',header = T)
+
+
+# fdata = read.table('Aarest_data.txt',header = T)
+# fdata = read.table('Aarest_data_censored_rot1.txt',header = T)
+# fdata = read.table('Aarest_data_endCensored.txt',header = T)
+# fdata = read.table('FRT_censord.txt',header = T)
+
+fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot1.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot2.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot3.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot4.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot5.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/FRT_censord.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/CNC_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/CNC_data_censored3.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/electronic_device.txt',header = T)
+# Haupt E, Schabe H. A new model for a lifetime distribution with bathtub shaped failure rate. Mircoelectronic & Reliability 1992;32: 633±9.
+
+
+fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+
+# Data preprocessing
+N = nrow(fdata)
+k=3 
+event_vec = fdata[,2] %>% as.numeric()
+time_vec = fdata[,1]%>% as.numeric()
+time_vec = time_vec/max(time_vec*1.1)
+tot=1e-6
+
+# 7개의 열을 가진 빈 data.frame 생성
+theta_df <- data.frame(matrix(ncol = 11, nrow = 0))
+column_names <- c("beta1", "lambda1", "beta2", "lambda2", "beta3", "lambda3", "sumQfunc","diffB_beta1","diffB_beta3","bp","EM iter")
+colnames(theta_df) <- column_names
+
+## initial beta , lambda , pi 
+initial_beta = c(0.99,1,5)
+initial_pi = c(1,2,1)
+initial_pi = initial_pi / sum(initial_pi)
+
+## Parameters initialize beta,pi
+beta_vec = initial_beta
+pi_vec = initial_pi
+
+
+
+## Parameter initialize LatantVariable 
+latentZ_mat = data.frame(matrix(0,N,k))
+phase1_latent = sapply( time_vec, function(i) exp(-i)) %>% scale_to_max
+phase2_latent = 1/2
+phase3_latent = sapply( time_vec, function(i) exp(i)) %>% scale_to_max
+latentZ_mat[,1]=phase1_latent
+latentZ_mat[,2]=phase2_latent
+latentZ_mat[,3]=phase3_latent
+latentZ_mat = scale_rows_to_sum1(latentZ_mat)
+
+
+## Parameter initialize Lambda 
+lambda_vec = sapply( 1:k , function(i) sum(latentZ_mat[,i]*event_vec)/sum(latentZ_mat[,i]*(time_vec^beta_vec[i])))
+
+
+
+#### init E-step ####
+# Obtain latentZ (by theta)₩
+weibull_pdfs = sapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
+weibull_pdf_sum = rowSums(weibull_pdfs)
+latentZ_mat = weibull_pdfs/weibull_pdf_sum
+################
+
+latentZ_mat %>% round(3)
+beta_vec
+lambda_vec
+
+## Parameter theta
+
+old_sumQ = sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+
+bp=1
+# bp=1
+for( i in 1:200000){
+  print("#####################################################################################################################")
+  print( paste0( "EM iteration : " , i ," sumQ :",sumQfunc(beta_vec,lambda_vec,latentZ_mat) , " Bp : ",bp))
+  print(paste0("pi_vec : " , sapply(pi_vec , function(i) round(i,2))))
+  print(paste0("Lambda : " , sapply(lambda_vec , function(i) round(i,2))))
+  print(paste0("Beta :",sapply(beta_vec , function(i) round(i,2))) )
+  print(paste0("Beta diff : " , diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) %>% abs+
+                 diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) %>% abs))
+  print("#####################################################################################################################")
+  
+  
+  #### M-step ####
+  pi_vec = colSums(latentZ_mat)/N
+  
+  #### with bp , NR method ####
+  
+  # beta 
+  NR_old_beta1 = beta_vec[1]
+  NR_old_beta3 = beta_vec[3]
+  
+  # N-R method 
+  print(paste0("N-R beta input :",beta_vec , " bp: ",bp))
+  while(TRUE){
+    NR_new_beta1 = newton_onlyBeta1(NR_old_beta1, lambda=lambda_vec[1], latentZ_mat, j=1, bp) 
+    NR_new_beta2 = 1 
+    NR_new_beta3 = newton_onlyBeta3(NR_old_beta3, lambda=lambda_vec[3], latentZ_mat, j=3, bp) 
+
+    # NR Stopping rule 
+    # if((NR_old_beta1-NR_new_beta1)^2+(NR_old_beta3-NR_new_beta3)^2<0.001/(min(bp*0.001,1))){
+    if((NR_old_beta1-NR_new_beta1)^2+(NR_old_beta3-NR_new_beta3)^2<0.001/(min(bp*0.1,1))){
+      # bp 가 충분히 커지고나서는 정상적인 바운드를 사용한다는 의도 
+      print(c("N-R converge"))
+      break
+    }else{
+      print(paste0("N-R not converge :",(NR_old_beta1-NR_new_beta1)^2+(NR_old_beta3-NR_new_beta3)^2))
+    }
+    
+    # Update N-R Parameter
+    NR_old_beta1 = NR_new_beta1
+    NR_old_beta2 = 1
+    NR_old_beta3 = NR_new_beta3
+  }
+  
+  # After NR method : make candidate EM parameter ( if not bigger then old_sumQ , not update )
+  NR_candi_EM_beta1 = NR_new_beta1
+  NR_candi_EM_beta2 = NR_new_beta2
+  NR_candi_EM_beta3 = NR_new_beta3
+  NR_candi_EM_lambda1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^NR_old_beta1))
+  NR_candi_EM_lambda2 = sum(latentZ_mat[,2]*event_vec)/sum(latentZ_mat[,2]*(time_vec^NR_old_beta2))
+  NR_candi_EM_lambda3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*(time_vec^NR_old_beta3))  
+  
+  # candidate EM parameter
+  NR_candi_EM_lambda = c(NR_candi_EM_lambda1,NR_candi_EM_lambda2,NR_candi_EM_lambda3)
+  NR_candi_EM_beta = c(NR_candi_EM_beta1,1,NR_candi_EM_beta3)
+  
+
+  new_sumQ = sumQfunc(NR_candi_EM_beta,NR_candi_EM_lambda,latentZ_mat)
+  
+  
+  difference = abs(old_sumQ - new_sumQ)
+  
+  
+
+  
+  
+  # Update EM Parameter test 
+  if(new_sumQ-old_sumQ>0){
+    print("-------------------------------------------------------------------")
+    print(paste0("new_sumQ>old_sumQ EM Para Update "))
+    beta_vec = NR_candi_EM_beta
+    lambda_vec = NR_candi_EM_lambda
+    
+    # print(paste0("Diff_Beta1:",diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1)))
+    # if(diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) %>% abs+
+    #    diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) %>% abs<0.0001){
+    #   print("Converge By diffB beta1 beta3")
+    #   break
+    # }
+    
+    #### E-step ####
+    print(paste0("new_sumQ>old_sumQ EM Para Update : E-step Update"))
+    print("-------------------------------------------------------------------")    
+    # Update latentZ_mat # 
+    weibull_pdfs = sapply(1:k, function(i) pi_vec[i]*weibull_func(time_vec, lambda = lambda_vec[i], beta = beta_vec[i]))
+    weibull_pdf_sum = rowSums(weibull_pdfs)
+    latentZ_mat = weibull_pdfs/weibull_pdf_sum
+    ################
+    
+    theta_df = rbind(theta_df,
+                     c(beta_vec[1],lambda_vec[1],beta_vec[2],lambda_vec[2],beta_vec[3],lambda_vec[3],sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+                       ,diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) ,
+                       diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) ,
+                       bp,i))
+    
+    # Update SumQ 
+    old_sumQ = new_sumQ
+    
+  }else{
+    print(paste0(" Not Update : EM parameter " , " SumQ_old ",old_sumQ," SumQ_new ",new_sumQ," bp :", bp , bp*1.001))
+    bp = bp*1.001
+    print("-------------------------------------------------------------------")
+  }
+  
+  
+  if(difference<0.0000001){
+    if(diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) %>% abs+
+       diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) %>% abs<0.0001){
+      print("-------------------------------------------------------------------")
+      print(" Difference Breaks ")
+      print("-------------------------------------------------------------------")
+      break
+    }else{
+      print("-------------------------------------------------------------------")
+      print(paste0(" Not Breaks : "," sumDiff : ",diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) %>% abs+
+                     diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) %>% abs , " bp :" ,bp))
+      bp = bp*1.000001
+      print("-------------------------------------------------------------------")
+    }
+  }
+  
+  
+}
+
