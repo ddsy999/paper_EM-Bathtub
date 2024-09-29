@@ -1,0 +1,210 @@
+
+############
+# How to Identify a Bathtub Hazard Rate
+# 107p
+
+# fdata = read.table('Aarest_data.txt',header = T)
+# fdata = read.table('CNC_data.txt',header = T)
+
+
+fdata = read.table('Aarest_data.txt',header = T)
+# fdata = read.table('Aarest_data_censored_rot1.txt',header = T)
+# fdata = read.table('Aarest_data_endCensored.txt',header = T)
+# fdata = read.table('FRT_censord.txt',header = T)
+
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot1.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot2.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot3.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot4.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot5.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/FRT_censord.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/CNC_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/CNC_data_censored3.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/electronic_device.txt',header = T)
+# Haupt E, Schabe H. A new model for a lifetime distribution with bathtub shaped failure rate. Mircoelectronic & Reliability 1992;32: 633±9.
+
+
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+
+# Data preprocessing
+N = nrow(fdata)
+k=3 
+event_vec = fdata[,2] %>% as.numeric()
+time_vec = fdata[,1]%>% as.numeric()
+time_vec = time_vec/max(time_vec*1.1)
+tot=1e-8
+
+# 11개의 열을 가진 빈 data.frame 생성
+theta_df <- data.frame(matrix(ncol = 15, nrow = 0))
+column_names <- c("beta1", "lambda1", "beta2", "lambda2", "beta3", "lambda3", "sumQfunc","diffB_beta1","diffB_beta3","bp","EM iter","Beta1 at 1","Q1","Q2","Q3")
+colnames(theta_df) <- column_names
+
+## initial beta , lambda , pi 
+initial_beta = c(0.3,1,5)
+initial_pi = c(1,1000,1)
+initial_pi = initial_pi / sum(initial_pi)
+
+## Parameters initialize beta,pi
+beta_vec = initial_beta
+pi_vec = initial_pi
+learning_rate = 1.001
+
+## Parameter initialize LatantVariable 
+latentZ_mat = data.frame(matrix(0,N,k))
+latentZ_mat[,1]=1
+latentZ_mat[,2]=1
+latentZ_mat[,3]=1
+latentZ_mat = scale_rows_to_sum1(latentZ_mat)
+
+## Parameter initialize Lambda 
+lambda_vec = sapply( 1:k , function(i) sum(latentZ_mat[,i]*event_vec)/sum(latentZ_mat[,i]*(time_vec^beta_vec[i])))
+
+
+## init bp
+bp=0.01
+
+## init SumQ
+# old_sumQ = sumQfunc_with_bp(beta_vec,lambda_vec,latentZ_mat,bp)
+old_sumQ = sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+new_sumQ = old_sumQ -1
+
+
+# old_Q1=Qfunc_with_bp_1(beta_vec[1],lambda_vec[1],latentZ_mat,j=1,bp)
+# old_Q2=Qfunc(beta_vec[2],lambda_vec[2],latentZ_mat,j=2)
+# old_Q3=Qfunc_with_bp_3(beta_vec[3],lambda_vec[3],latentZ_mat,j=3,bp)
+
+old_Q1=Qfunc(beta_vec[1],lambda_vec[1],latentZ_mat,j=1)
+old_Q2=Qfunc(beta_vec[2],lambda_vec[2],latentZ_mat,j=2)
+old_Q3=Qfunc(beta_vec[3],lambda_vec[3],latentZ_mat,j=3)
+
+for( i in 1:200000){
+  
+  #### E-Step ####
+  print("#### E-Step ####")
+  latentZ_mat = Estep_result(beta_vec,lambda_vec)
+  ################
+  
+  #### Update SumQ by latent , Next M-step for parameter
+  # old_sumQ = sumQfunc_with_bp(beta_vec,lambda_vec,latentZ_mat,bp)
+  old_sumQ = sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+  
+  
+  if(i>1){
+    print("#####################################################################################################################")
+    print( paste0( "EM iteration : " , i ," sumQ :",sumQfunc(beta_vec,lambda_vec,latentZ_mat) , " Bp : ",bp, " Difference :",difference))
+    print(paste0(c("pi_vec : " , sapply(pi_vec , function(i) round(i,2))),collapse = " / "))
+    print(paste0(c("Lambda : " , sapply(lambda_vec , function(i) round(i,2))),collapse = " / "))
+    print(paste0(c("Beta :",sapply(beta_vec , function(i) round(i,4))) ,collapse = " / "))
+    print(paste0("Beta diff : " , diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) %>% abs+
+                   diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) %>% abs))
+    print(paste0(c("Beta1 at 1 is minus :",diffB_onlyB(1,lambda_vec[1],latentZ_mat,j=1)<0) ,collapse = " / "))
+    print("#####################################################################################################################")
+  }
+  
+  
+  #### M-step : Barrier-Method , with E-step-latentZ_mat
+  print("#### M-Step ####")
+  # bp=0.01
+  
+  # if(diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1)>0){
+  #   bp=0.01  
+  # }  
+  
+  while(old_sumQ>new_sumQ){
+      #### estimate pi
+      pi_vec = colSums(latentZ_mat)/N
+      #### estimate Unit root : Beta 
+      NR_new_beta1 = uniroot(diffB_onlyBeta1_with_Barrier, interval = c(0, 1), lambda = lambda_vec[1], latentZ_mat = latentZ_mat, j = 1,bp=bp)$root
+      NR_new_beta2 = 1
+      
+      NR_new_beta3 = uniroot(diffB_onlyBeta3_with_Barrier, interval = c(1,7000), lambda = lambda_vec[3], latentZ_mat = latentZ_mat, j = 3,bp=bp)$root
+      
+      #### estimate : Lambda
+      NR_candi_EM_lambda1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^NR_new_beta1))
+      NR_candi_EM_lambda2 = sum(latentZ_mat[,2]*event_vec)/sum(latentZ_mat[,2]*(time_vec^NR_new_beta2))
+      NR_candi_EM_lambda3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*(time_vec^NR_new_beta3))
+    
+      #### candidate EM parameter
+      NR_candi_EM_lambda = c(NR_candi_EM_lambda1,NR_candi_EM_lambda2,NR_candi_EM_lambda3)
+      NR_candi_EM_beta = c(NR_new_beta1,1,NR_new_beta3)
+      
+      new_sumQ = sumQfunc(NR_candi_EM_beta,NR_candi_EM_lambda,latentZ_mat)
+      # new_sumQ = sumQfunc_with_bp(NR_candi_EM_beta,NR_candi_EM_lambda,latentZ_mat,bp)
+      bp=learning_rate*bp
+      
+      if(bp>1e+4){
+        print("#### bp Break ####")
+        break
+      }
+  }
+  
+  # while 문을 탈출 했다는것은 new_sumQ>old_sumQ 라는것 그래서 Update가 일어나야 하는데 
+  # 그래도 bp=learning_rate*bp 가 일어나야함 
+  # 만약에 아니라면? 그냥 내부에서 계속 올리나?
+  
+  difference = abs(new_sumQ-old_sumQ)
+  parameter_beta_difference = (beta_vec[1] - NR_candi_EM_beta[1])^2+(beta_vec[3] - NR_candi_EM_beta[3])^2
+  
+  # new_Q1=Qfunc_with_bp_1(beta_vec[1],lambda_vec[1],latentZ_mat,j=1,bp)
+  # new_Q2=Qfunc(beta_vec[2],lambda_vec[2],latentZ_mat,j=2)
+  # new_Q3=Qfunc_with_bp_3(beta_vec[3],lambda_vec[3],latentZ_mat,j=3,bp)
+  
+  # 일단 NewQ 가 더 큰상황이다. 
+  new_Q1=Qfunc(NR_candi_EM_beta[1],NR_candi_EM_lambda[1],latentZ_mat,j=1)
+  new_Q2=Qfunc(NR_candi_EM_beta[2],NR_candi_EM_lambda[2],latentZ_mat,j=2)
+  new_Q3=Qfunc(NR_candi_EM_beta[3],NR_candi_EM_lambda[3],latentZ_mat,j=3)
+  
+  if(new_Q1>old_Q1 || new_Q3>old_Q3){
+    print("#### Update parameter ####")    
+    beta_vec[1] = NR_candi_EM_beta[1]  
+    lambda_vec[1] = NR_candi_EM_lambda[1]
+    beta_vec[3] = NR_candi_EM_beta[3]  
+    lambda_vec[3] = NR_candi_EM_lambda[3]
+    
+    old_Q1=new_Q1
+    old_Q3=new_Q3
+    
+    lambda_vec[2] = NR_candi_EM_lambda[2]
+    
+    
+    theta_df = rbind(theta_df,
+                     c(beta_vec[1],lambda_vec[1],beta_vec[2],lambda_vec[2],beta_vec[3],lambda_vec[3],sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+                       ,diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) ,
+                       diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) ,
+                       bp,i,diffB_onlyB(1,lambda_vec[1],latentZ_mat,j=1),
+                       old_Q1,
+                       old_Q2,
+                       old_Q3
+                     ))
+    
+    
+  }else{
+    # Not Update
+    print("#### Not Update parameter ####")
+    bp=learning_rate*bp
+  }
+
+  
+  
+  if(difference<tot){
+    print("#### sumQ Break ####")
+    break
+  }
+  
+  if(parameter_beta_difference<tot && diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) %>% abs < 0.0001){
+    print("#### parameter_beta_difference Break ####")
+    break
+  }
+  
+  if(bp>1e+4){
+    print("#### bp Break ####")
+    break
+  }
+}
+
+
+diffB_onlyBeta3_with_Barrier(beta_vec[3],lambda_vec[3],latentZ_mat,j=3,bp=0.8)
+
+diffB_onlyBeta3_with_Barrier(7700,lambda_vec[3],latentZ_mat,j=3,bp=bp)
