@@ -1,0 +1,270 @@
+
+############
+# How to Identify a Bathtub Hazard Rate
+# 107p
+
+# fdata = read.table('Aarest_data.txt',header = T)
+# fdata = read.table('CNC_data.txt',header = T)
+
+
+# fdata = read.table('Aarest_data.txt',header = T)
+# fdata = read.table('Aarest_data_censored_rot1.txt',header = T)
+# fdata = read.table('Aarest_data_endCensored.txt',header = T)
+# fdata = read.table('FRT_censord.txt',header = T)
+
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot1.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot2.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot3.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot4.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot5.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/FRT_censord.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/CNC_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/CNC_data_censored3.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/electronic_device.txt',header = T)
+# Haupt E, Schabe H. A new model for a lifetime distribution with bathtub shaped failure rate. Mircoelectronic & Reliability 1992;32: 633±9.
+
+
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+
+# Data preprocessing
+N = nrow(fdata)
+k=3 
+event_vec = fdata[,2] %>% as.numeric()
+time_vec = fdata[,1]%>% as.numeric()
+# time_vec = time_vec/max(time_vec*1.1)
+tot=1e-6
+maxBp = 1e+4
+
+# 11개의 열을 가진 빈 data.frame 생성
+theta_df <- data.frame(matrix(ncol = 15, nrow = 0))
+column_names <- c("beta1", "lambda1", "beta2", "lambda2", "beta3", "lambda3", "sumQfunc","diffB_beta1","diffB_beta3","bp","EM iter","Beta1 at 1","Q1","Q2","Q3")
+colnames(theta_df) <- column_names
+
+## initial beta , lambda , pi 
+initial_beta = c(0.5,1,5)
+initial_pi = c(1,2,1)
+# initial_pi = c(1,100,1)
+initial_pi = initial_pi / sum(initial_pi)
+
+## Parameters initialize beta,pi
+beta_vec = initial_beta
+pi_vec = initial_pi
+learning_rate = 1.01
+
+## Parameter initialize LatantVariable 
+latentZ_mat = data.frame(matrix(0,N,k))
+latentZ_mat[,1]=1
+latentZ_mat[,2]=1
+latentZ_mat[,3]=1
+latentZ_mat = scale_rows_to_sum1(latentZ_mat)
+
+
+
+## Parameter initialize Lambda 
+lambda_vec = sapply( 1:k , function(i) sum(latentZ_mat[,i]*event_vec)/sum(latentZ_mat[,i]*(time_vec^beta_vec[i])))
+
+
+## init bp
+bp=0.01
+
+## init SumQ
+# old_sumQ = sumQfunc_with_bp(beta_vec,lambda_vec,latentZ_mat,bp)
+old_sumQ = sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+new_sumQ = old_sumQ -1
+
+
+# old_Q1=Qfunc_with_bp_1(beta_vec[1],lambda_vec[1],latentZ_mat,j=1,bp)
+# old_Q2=Qfunc(beta_vec[2],lambda_vec[2],latentZ_mat,j=2)
+# old_Q3=Qfunc_with_bp_3(beta_vec[3],lambda_vec[3],latentZ_mat,j=3,bp)
+
+old_Q1=Qfunc(beta_vec[1],lambda_vec[1],latentZ_mat,j=1)
+old_Q2=Qfunc(beta_vec[2],lambda_vec[2],latentZ_mat,j=2)
+old_Q3=Qfunc(beta_vec[3],lambda_vec[3],latentZ_mat,j=3)
+
+new_Q1=old_Q1 - 1
+new_Q2=old_Q2 - 1
+new_Q3=old_Q3 - 1
+
+
+for( i in 1:200000){
+  
+  #### E-Step ####
+  # print("#### E-Step ####")
+  # candi_latentZ_mat=Estep_result(beta_vec,lambda_vec)
+  # if(diffB_onlyB(1,lambda_vec[1],candi_latentZ_mat,j=1)<0){
+  # print("#### E-Step Update ####")
+  # latentZ_mat = Estep_result(beta_vec,lambda_vec)
+  # }else{
+  #   print("#### Not E-Step Update ####")
+  # }
+
+  #### E-Step ####
+  print("#### E-Step Update ####")
+  candi_latentZ_mat = Estep_result(beta_vec,lambda_vec)
+  print(abs(sum(latentZ_mat-candi_latentZ_mat)))
+  latentZ_mat=candi_latentZ_mat
+  ################
+  
+  #### Update SumQ by latent , Next M-step for parameter
+  # old_sumQ = sumQfunc_with_bp(beta_vec,lambda_vec,latentZ_mat,bp)
+  old_sumQ = sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+  
+  
+  if(i>1){
+    print("#####################################################################################################################")
+    print( paste0( "EM iteration : " , i ," sumQ :",sumQfunc(beta_vec,lambda_vec,latentZ_mat) , " Bp : ",bp, " Difference :",difference))
+    print(paste0(c("pi_vec : " , sapply(pi_vec , function(i) round(i,2))),collapse = " / "))
+    print(paste0(c("Lambda : " , sapply(lambda_vec , function(i) round(i,2))),collapse = " / "))
+    print(paste0(c("Beta :",sapply(beta_vec , function(i) round(i,4))) ,collapse = " / "))
+    print(paste0("Beta diff : " , diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) %>% abs+
+                   diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) %>% abs))
+    print(paste0(c("Beta1 at 1 is minus :",diffB_onlyB(1,lambda_vec[1],latentZ_mat,j=1)<0) ,collapse = " / "))
+    print(paste0(" data save : ", nrow(theta_df)))
+    print("#####################################################################################################################")
+  }
+  
+  
+  #### M-step : Barrier-Method , with E-step-latentZ_mat
+  print("#### M-Step ####")
+  bp = 0.1
+  while(TRUE){
+  
+    bp=learning_rate*bp
+    if(bp>maxBp){
+      print(" While Max Bp Break ")
+      break}
+      
+    # print("#### M-Step - NR-method ####")
+    old_Q1=Qfunc(beta_vec[1],lambda_vec[1],latentZ_mat,j=1)
+    old_Q2=Qfunc(beta_vec[2],lambda_vec[2],latentZ_mat,j=2)
+    old_Q3=Qfunc(beta_vec[3],lambda_vec[3],latentZ_mat,j=3)
+    
+    temp_beta1 = 0
+    temp_beta2 = 0
+    temp_beta3 = 0
+      while(TRUE){
+        
+        #### estimate pi
+        pi_vec = colSums(latentZ_mat)/N
+        
+        #### estimate NR : Beta 
+        new_beta1 = newton_onlyBeta1(beta=beta_vec[1], lambda=lambda_vec[1], latentZ_mat, j=1, bp)
+        new_beta2 = 1
+        new_beta3 = newton_onlyBeta3(beta=beta_vec[3], lambda=lambda_vec[3], latentZ_mat, j=3, bp)
+        
+        
+        #### estimate : Lambda
+        candi_EM_lambda1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^new_beta1))
+        candi_EM_lambda2 = sum(latentZ_mat[,2]*event_vec)/sum(latentZ_mat[,2]*(time_vec^new_beta2))
+        candi_EM_lambda3 = sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*(time_vec^new_beta3))
+        
+        #### candidate EM parameter
+        candi_EM_beta = c(new_beta1,1,new_beta3)
+        candi_EM_lambda = c(candi_EM_lambda1,candi_EM_lambda2,candi_EM_lambda3)
+        
+        new_sumQ = sumQfunc(candi_EM_beta,candi_EM_lambda,latentZ_mat)
+        
+        # 일단 NewQ 가 더 큰상황이다. 
+        new_Q1=Qfunc(candi_EM_beta[1],candi_EM_lambda[1],latentZ_mat,j=1)
+        new_Q2=Qfunc(candi_EM_beta[2],candi_EM_lambda[2],latentZ_mat,j=2)
+        new_Q3=Qfunc(candi_EM_beta[3],candi_EM_lambda[3],latentZ_mat,j=3)
+        
+        # while 문을 탈출 했다는것은 new_sumQ>old_sumQ 라는것 그래서 Update가 일어나야 하는데 
+        # 그래도 bp=learning_rate*bp 가 일어나야함 
+        # 만약에 아니라면? 그냥 내부에서 계속 올리나?
+        
+        NR_Difference = sqrt((temp_beta1-candi_EM_beta[1])^2+(temp_beta2-candi_EM_beta[2])^2+(temp_beta3-candi_EM_beta[3])^2)*10000
+        if(NR_Difference<tot){
+          # print(paste0(" While M-Step new Value , Bp : ",bp))
+          break
+          }
+        else{
+            temp_beta1=candi_EM_beta[1]
+            temp_beta2=candi_EM_beta[2]
+            temp_beta3=candi_EM_beta[3]
+          }
+          
+        # if(old_Q1<new_Q1 || old_Q3<new_Q3){
+        #   NR_Difference = (temp_beta1-candi_EM_beta[1])^2+(temp_beta2-candi_EM_beta[2])^2+(temp_beta3-candi_EM_beta[3])^2
+        #   if(NR_Difference<tot){
+        #     print(" While M-Step new Value ")
+        #     break}else{
+        #       temp_beta1=candi_EM_beta[1]
+        #       temp_beta2=candi_EM_beta[2]
+        #       temp_beta3=candi_EM_beta[3]
+        #     }
+        #   }
+        }
+  }
+
+  print(paste0("####### while Break #########"))
+# break  
+  # if(bp>maxBp){
+  #   print(paste0(" Maximal bp Break "," bp :",bp))
+  #   break}
+
+  
+  difference = abs(new_Q1-old_Q1)+abs(new_Q3-old_Q3)
+  parameter_beta_difference = sqrt((beta_vec[1] - candi_EM_beta[1])^2+(beta_vec[3] - candi_EM_beta[3])^2)
+
+  
+  # new_Q1=Qfunc_with_bp_1(beta_vec[1],lambda_vec[1],latentZ_mat,j=1,bp)
+  # new_Q2=Qfunc(beta_vec[2],lambda_vec[2],latentZ_mat,j=2)
+  # new_Q3=Qfunc_with_bp_3(beta_vec[3],lambda_vec[3],latentZ_mat,j=3,bp)
+  
+  if(new_Q1>old_Q1){
+    print("#### Update Beta1 parameter ####")   
+    beta_vec[1] = candi_EM_beta[1]  
+    lambda_vec[1] =candi_EM_lambda[1]
+    old_Q1=new_Q1
+    
+    beta_vec[2]=1
+    lambda_vec[2] = candi_EM_lambda[2]
+  }
+  
+  if(new_Q3>old_Q3){
+    print("#### Update Beta3 parameter ####")   
+    beta_vec[3] = candi_EM_beta[3]  
+    lambda_vec[3] =candi_EM_lambda[3]
+    old_Q3=new_Q3
+    
+    beta_vec[2]=1
+    lambda_vec[2] = candi_EM_lambda[2]
+  }
+  
+
+  theta_df = rbind(theta_df,
+                   c(beta_vec[1],lambda_vec[1],beta_vec[2],lambda_vec[2],beta_vec[3],lambda_vec[3],sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+                     ,diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1) ,
+                     diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3) ,
+                     bp,i,diffB_onlyB(1,lambda_vec[1],latentZ_mat,j=1),
+                     old_Q1,
+                     old_Q2,
+                     old_Q3
+                   ))
+  
+  
+  if(difference<tot){
+    print("#### sumQ Break ####")
+    break
+  }
+  
+  if(parameter_beta_difference<tot ){
+    print("#### parameter_beta_difference Break ####")
+    break
+  }
+}
+
+# latentZ_mat %>% round(3)
+
+
+# data.frame(latentZ_mat[,1]*pi_vec[1],latentZ_mat[,2]*pi_vec[2],latentZ_mat[,3]*pi_vec[3]) %>% round(3)
+# latentZ_mat %>% round(3)
+
+diffB_onlyB(beta_vec[3],lambda_vec[3],latentZ_mat,j=3)
+diffB_onlyB(beta_vec[1],lambda_vec[1],latentZ_mat,j=1)
+abs(1/(beta_vec[1])-(1/(1-beta_vec[1])))/bp
+
+diffB_onlyB(1,lambda_vec[1],latentZ_mat,j=1)
