@@ -1,3 +1,4 @@
+
 library(reshape2)
 library(dplyr)
 library(ggplot2)
@@ -9,26 +10,26 @@ library(patchwork)
 Qfunc = function(beta = 1 ,lambda, latentZ_mat, j=1){
   sum(latentZ_mat[,j]*event_vec*log(lambda)) +
     sum(latentZ_mat[,j]*event_vec*log(beta)) +
-    sum(latentZ_mat[,j]*(beta-1)*log(time_vec)) -
+    sum(latentZ_mat[,j]*event_vec*(beta-1)*log(time_vec)) -
     sum(latentZ_mat[,j]*lambda*time_vec^beta) 
-    # sum(latentZ_mat[,j]*log(pi_vec[j]))
+    sum(latentZ_mat[,j]*log(pi_vec[j]))
 }
 
 Qfunc_with_bp_1 = function(beta = 1 ,lambda, latentZ_mat, j=1,bp){
   sum(latentZ_mat[,j]*event_vec*log(lambda)) +
     sum(latentZ_mat[,j]*event_vec*log(beta)) +
-    sum(latentZ_mat[,j]*(beta-1)*log(time_vec)) -
+    sum(latentZ_mat[,j]*event_vec*(beta-1)*log(time_vec)) -
     sum(latentZ_mat[,j]*lambda*time_vec^beta) +
-    # sum(latentZ_mat[,j]*log(pi_vec[j]))+
+    sum(latentZ_mat[,j]*log(pi_vec[j]))+
     (log(beta)+log(1-beta))/bp
 }
 
 Qfunc_with_bp_3 = function(beta = 1 ,lambda, latentZ_mat, j=3,bp){
   sum(latentZ_mat[,j]*event_vec*log(lambda)) +
     sum(latentZ_mat[,j]*event_vec*log(beta)) +
-    sum(latentZ_mat[,j]*(beta-1)*log(time_vec)) -
+    sum(latentZ_mat[,j]*event_vec*(beta-1)*log(time_vec)) -
     sum(latentZ_mat[,j]*lambda*time_vec^beta) +
-    # sum(latentZ_mat[,j]*log(pi_vec[j]))+
+    sum(latentZ_mat[,j]*log(pi_vec[j]))+
     (log(beta-1))/bp
 }
 
@@ -40,7 +41,7 @@ sumQfunc_with_bp = function(beta_vec,lambda_vec,latentZ_mat ,bp){
 Qfunc_onlyB = function(beta = 1 ,lambda,latentZ_mat, j=1){
   sum(latentZ_mat[,j]*event_vec)*log(sum(latentZ_mat[,j]*event_vec)/sum(latentZ_mat[,j]*(time_vec^beta)))+
     sum(latentZ_mat[,j]*event_vec*log(beta))+
-    sum(latentZ_mat[,j]*(beta-1)*log(time_vec))-
+    sum(latentZ_mat[,j]*event_vec*(beta-1)*log(time_vec))-
     sum(latentZ_mat[,j]*event_vec)
 }
 
@@ -63,7 +64,7 @@ diffB = function(beta,lambda,latentZ_mat,j){
 
 diffB_onlyB = function(beta,lambda,latentZ_mat,j){
   sum(latentZ_mat[,j]*event_vec)/beta + 
-    sum(latentZ_mat[,j]*log(time_vec))-
+    sum(latentZ_mat[,j]*event_vec*log(time_vec))-
     sum(latentZ_mat[,j]*event_vec)*sum(latentZ_mat[,j]*(time_vec^beta)*log(time_vec))/sum(latentZ_mat[,j]*(time_vec^beta))
 }
 
@@ -109,9 +110,8 @@ hessianB_onlyBeta1_with_Barrier <- function(beta, lambda, latentZ_mat, j, bp) {
   time_beta_sum <- sum(latentZ_mat[,j]*(time_vec^beta))
   
   # diffB_onlyB에서의 2차 미분 계산
-  hessian_Q <- (- event_sum * 
-                  ((sum(latentZ_mat[,j]*(time_vec^beta)*(log(time_vec)^2)) * time_beta_sum - 
-                      time_beta_log_sum^2) / time_beta_sum^2)) -event_sum / beta^2
+  hessian_Q <- -event_sum*((sum(latentZ_mat[,j]*(time_vec^beta)*(log(time_vec)^2)) * time_beta_sum - 
+                      time_beta_log_sum^2) / time_beta_sum^2) -event_sum/beta^2
   
   # 최종 헤시안은 목적 함수의 2차 도함수와 배리어 함수의 2차 도함수를 합한 것
   total_hessian <- hessian_Q + barrier_hessian / bp
@@ -280,17 +280,14 @@ scale_rows_to_sum1 <- function(mat) {
 
 
 
-
-
-
-
 ############
 # How to Identify a Bathtub Hazard Rate
 # 107p
 
 
-fdata = read.table('Aarest_data.txt',header = T)
+# fdata = read.table('Aarest_data.txt',header = T)
 # fdata = read.table('Aarest_data_censored_rot1.txt',header = T)
+fdata = read.table('Aarest_data_censored_rot2.txt',header = T)
 # fdata = read.table('Aarest_data_endCensored.txt',header = T)
 # fdata = read.table('FRT_censord.txt',header = T)
 
@@ -314,7 +311,8 @@ k=3
 event_vec = fdata[,2] %>% as.numeric()
 time_vec = fdata[,1]%>% as.numeric()
 # time_vec = time_vec/max(time_vec*1.1)
-tot=1e-6
+time_vec = time_vec/max(time_vec)
+tot=1e-4
 maxBp = 1e+5
 
 # 11개의 열을 가진 빈 data.frame 생성
@@ -324,7 +322,7 @@ colnames(theta_df) <- column_names
 
 ## initial beta , lambda , pi 
 initial_beta = c(0.5,1,5)
-initial_pi = c(1,1,1)
+initial_pi = c(1,10,1)
 # initial_pi = c(1,100,1)
 initial_pi = initial_pi / sum(initial_pi)
 
@@ -349,10 +347,6 @@ lambda_vec = sapply( 1:k , function(i) sum(latentZ_mat[,i]*event_vec)/sum(latent
 ## init bp
 bp=0.01
 
-## init SumQ
-# old_sumQ = sumQfunc_with_bp(beta_vec,lambda_vec,latentZ_mat,bp)
-old_sumQ = sumQfunc(beta_vec,lambda_vec,latentZ_mat)
-new_sumQ = old_sumQ -1
 
 
 # old_Q1=Qfunc_with_bp_1(beta_vec[1],lambda_vec[1],latentZ_mat,j=1,bp)
@@ -363,13 +357,11 @@ old_Q1=Qfunc(beta_vec[1],lambda_vec[1],latentZ_mat,j=1)
 old_Q2=Qfunc(beta_vec[2],lambda_vec[2],latentZ_mat,j=2)
 old_Q3=Qfunc(beta_vec[3],lambda_vec[3],latentZ_mat,j=3)
 
+old_sumQ_EM = -999999
 difference = 99999
 parameter_beta_difference = 99999
 for( i in 1:200000){
-  
-  # sumQ of Old Parameter 
-  old_sumQ_EM = sumQfunc(beta_vec,lambda_vec,latentZ_mat)
-  
+
   #### E-Step ####
   # print("#### E-Step ####")
   # candi_latentZ_mat=Estep_result(beta_vec,lambda_vec)
@@ -393,8 +385,20 @@ for( i in 1:200000){
     print("#####################################################################################################################")
   }
   
+  
+  # sumQ of Old Parameter 
+  new_sumQ_EM = sumQfunc(beta_vec,lambda_vec,latentZ_mat)
+  if(new_sumQ_EM<old_sumQ_EM){
+    print(" Break : Decreasing sumQ ")
+    break
+  }else{
+    old_sumQ_EM = new_sumQ_EM
+  }
+  
+  
+  
   if(difference<tot){
-    print("#### sumQ Break ####")
+    print("#### sumQ difference<tot Break ####")
     break
   }
   
@@ -452,7 +456,23 @@ for( i in 1:200000){
       new_beta2 = 1
       new_beta3 = newton_onlyBeta3(beta=before_beta3, lambda=lambda_vec[3], latentZ_mat, j=3, bp)
       
+      
+      
+      gradient <- diffB_onlyBeta3_with_Barrier(before_beta3, lambda_vec[3], latentZ_mat, j=3, bp)
+      
+      # 2차 도함수 (Hessian)
+      hessian <- hessianB_onlyBeta3_with_Barrier(before_beta3, lambda_vec[3], latentZ_mat, j=3, bp)
     
+      
+      diffB_onlyB(before_beta3, lambda_vec[3], latentZ_mat, j=3)+(1/(before_beta3-1))/bp
+      
+      
+      
+    
+      
+      
+      
+      
       #### estimate : Lambda
       new_lambda1 = sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^new_beta1))
       new_lambda2 = sum(latentZ_mat[,2]*event_vec)/sum(latentZ_mat[,2]*(time_vec^new_beta2))
@@ -465,26 +485,12 @@ for( i in 1:200000){
       
       NR_Difference = sqrt((before_beta1-new_beta[1])^2+(before_beta2-new_beta[2])^2+(before_beta3-new_beta[3])^2)
       if(NR_Difference<tot){
-        # print(paste0(" NR_Difference Convergence , Bp : ",bp))
         break
       }
       
       before_beta1 = new_beta[1]
       before_beta2 = new_beta[2]
       before_beta3 = new_beta[3]
-      
-      # print(diffB_onlyB(new_beta[1],lambda_vec[1],latentZ_mat,j=1))
-      
-      # if(old_Q1<new_Q1 || old_Q3<new_Q3){
-      #   NR_Difference = (temp_beta1-candi_EM_beta[1])^2+(temp_beta2-candi_EM_beta[2])^2+(temp_beta3-candi_EM_beta[3])^2
-      #   if(NR_Difference<tot){
-      #     print(" While M-Step new Value ")
-      #     break}else{
-      #       temp_beta1=candi_EM_beta[1]
-      #       temp_beta2=candi_EM_beta[2]
-      #       temp_beta3=candi_EM_beta[3]
-      #     }
-      #   }
       
     }
     ###################################################################################
@@ -520,7 +526,7 @@ for( i in 1:200000){
   
   if(new_NR_Q1>old_Q1 || new_NR_Q3>old_Q3){
     theta_df = rbind(theta_df,
-                     c(new_beta[1],new_lambda[1],new_beta[2],new_lambda[2],new_beta[3],new_lambda[3],sumQfunc(new_beta,new_lambda,latentZ_mat)
+                     c(new_beta[1],new_lambda[1],new_beta[2],new_lambda[2],new_beta[3],new_lambda[3],old_sumQ_EM
                        ,diffB_onlyB(new_beta[1],new_lambda[1],latentZ_mat,j=1) ,
                        diffB_onlyB(new_beta[3],new_lambda[3],latentZ_mat,j=3) ,
                        bp,i,diffB_onlyB(1,new_lambda[1],latentZ_mat,j=1),
@@ -574,8 +580,3 @@ for( i in 1:200000){
 # abs(1/(beta_vec[1])-(1/(1-beta_vec[1])))/bp
 
 # diffB_onlyB(1,lambda_vec[1],latentZ_mat,j=1)
-
-
-
-
-
