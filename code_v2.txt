@@ -71,7 +71,7 @@ diffB_onlyBeta1_with_Barrier = function(beta,lambda,latentZ_mat,j,bp){
 
 
 diffB_onlyBeta3_with_Barrier = function(beta,lambda,latentZ_mat,j,bp){
-  diffB_onlyB(beta,lambda,latentZ_mat,j)-+(1/(beta-1))/bp
+  diffB_onlyB(beta,lambda,latentZ_mat,j)+(1/(beta-1))/bp
   # diffB_onlyB(beta,lambda,latentZ_mat,j)+(1/(beta))/bp
 }
 
@@ -79,13 +79,6 @@ diffB_onlyBeta3_with_Barrier = function(beta,lambda,latentZ_mat,j,bp){
 diffL = function(beta,lambda,latentZ_mat,j){
   sum(latentZ_mat[,j]*(event_vec/lambda - time_vec^beta))
 }
-
-
-
-
-
-
-
 
 
 
@@ -148,9 +141,8 @@ barrier_beta3_NR = function(beta,latentZ_mat,j,bp){
   grad_sign = 0
   while(TRUE){
     gradient = diffB_onlyBeta3_with_Barrier(beta,lambda,latentZ_mat,j,bp)
-    
-    # newbeta = beta + sign(gradient)*min(abs(gradient) ,stepsize )
-    newbeta = beta + stepSize_func(gradient,stepsize)
+    step_size_result = stepSize_func(gradient,stepsize)
+    newbeta = beta + step_size_result
     if(newbeta<1){newbeta = (1+beta)/2}
     # print(paste0(beta," ",gradient*stepsize, " ",bp))
     if(abs(newbeta-beta)<tot){break}
@@ -229,8 +221,8 @@ scale_rows_to_sum1 <- function(mat) {
 # 107p
 
 
-# fdata = read.table('Aarest_data.txt',header = T)
-fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
+fdata = read.table('Aarest_data.txt',header = T)
+# fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data.txt',header = T)
 # fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot1.txt',header = T)
 # fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot2.txt',header = T)
 # fdata = read.table('/Users/choijisoo/Documents/Github/Aarest_data_censored_rot3.txt',header = T)
@@ -301,7 +293,7 @@ for( iter in 1:2000){
   print("#####################################################################################################################")
   
   #### M-Step ####
-
+  
   #### Beta : M-Step : G-D method #### 
   before_vec = beta_vec
   before_lambda = lambda_vec
@@ -323,8 +315,6 @@ for( iter in 1:2000){
     # bp = (1+sigmoid_func(bp,20)/1000)*bp
     bp = min((1+0.0001)*bp,1e+10)
     if(abs(before_vec[1]-new_beta1)<tot ){
-      print(bp)
-      print(abs(before_vec[1]-new_beta1))
       break}
     before_vec[1]=new_beta1
     bp1=bp
@@ -346,8 +336,6 @@ for( iter in 1:2000){
     # bp = (1+sigmoid_func(bp,20)/1000)*bp
     bp = min((1+0.0001)*bp,1e+10)
     if(abs(before_vec[3]-new_beta3)<tot ){
-      print(bp)
-      print(abs(before_vec[3]-new_beta3))
       break}
     before_vec[3]=new_beta3
     bp2=bp
@@ -358,11 +346,11 @@ for( iter in 1:2000){
   
   new_beta = before_vec
   
-
+  
   print(c( "differential ", diffB_onlyB(new_beta[1], new_lambda[1],latentZ_mat,j=1), diffB_onlyB(new_beta[3], new_lambda[3],latentZ_mat,j=3)))
   # print(c( "differential ", 1/diffB_onlyB(new_beta[1], new_lambda[1],latentZ_mat,j=1), 1/diffB_onlyB(new_beta[3], new_lambda[3],latentZ_mat,j=3)))
   
-
+  
   
   ### Beta Update ### 
   Update_start = 0
