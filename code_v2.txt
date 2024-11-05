@@ -122,8 +122,8 @@ barrier_beta1_NR = function(beta,latentZ_mat,j,bp){
   #plan 1
   while(TRUE){
     gradient = diffB_onlyBeta1_with_Barrier(beta,lambda,latentZ_mat,j,bp)
-    # newbeta = beta + gradient*stepsize
-    newbeta = beta + stepSize_func(gradient,stepsize)
+    step_size_result = stepSize_func(gradient,stepsize)
+    newbeta = beta + step_size_result
     # print(paste0(beta," ",gradient*stepsize))
     if(newbeta>1){newbeta = (1+beta)/2}
     if(newbeta<0){newbeta = (beta)/2}
@@ -136,7 +136,7 @@ barrier_beta1_NR = function(beta,latentZ_mat,j,bp){
     }
     beta = newbeta
   }
-  
+  print(paste0("barrier_beta1_NR ",step_size_result))
   return(beta)
 }
 
