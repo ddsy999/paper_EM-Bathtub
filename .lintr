@@ -1,0 +1,4 @@
+linters: with_defaults()
+exclusions: list(
+  "excute_FULL.R"  # 제외할 R 파일의 경로
+)
