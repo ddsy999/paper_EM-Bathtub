@@ -7,6 +7,8 @@ source("DAEM_BarrierMethod_function.R")
 
 # Reading Data
 file_name = 'Aarest_data.txt'
+file_name = 'Aarest_data_censored_rot5.txt'
+file_name = 'Aarest_data_rightcensored.txt'
 fdata = read.table(file_name,header = T)
 
 # Data preprocessing
@@ -43,6 +45,15 @@ lambda_vec = initial_lambda
 latentZ_mat = Estep_result(beta_vec,lambda_vec,pi_vec,alpha=1)
 
 
+objective_function1 <- function(new_beta1) {
+  diffB_onlyB(new_beta1, latentZ_mat , j = 1)
+}
+
+objective_function3 <- function(new_beta1) {
+  diffB_onlyB(new_beta3, latentZ_mat , j = 3)
+}
+
+
 for( iter in 1:100){ 
   print("#####################################################################################################################")
   print( paste0( "EM iteration : " , iter ," sumQ :",sumQfunc(beta_vec,lambda_vec,latentZ_mat)))
@@ -65,21 +76,16 @@ for( iter in 1:100){
 
   ###############
   print(" ### Beta1 Update ###")
-  bp1=1e+30*(iter+1)
-  for( i in 1:10000){
-    bp1=bp1*(i+1)
-    new_beta1 = barrier_beta1(candi_before_vec[1],latentZ_mat,bp=bp1 )
-    if(abs(diffB_onlyB(new_beta1,latentZ_mat ,j=1))<tot){break}
-  }
-  
+  result1 = multiroot(
+  f = function(new_beta1) diffB_onlyB(new_beta1, latentZ_mat , j = 1), 
+  start = candi_before_vec[1])
+  new_beta1 = result1$root
 
   print(" ### Beta3 Update ###")
-  bp3=1e+10*(iter+1)
-  for( i in 1:10000){
-    bp3=bp3*(i+1)
-    new_beta3 = barrier_beta3(candi_before_vec[3],latentZ_mat,bp=bp3 )
-    if(abs(diffB_onlyB(new_beta3,latentZ_mat ,j=3))<tot){break}
-  }
+  result3 = multiroot(
+  f = function(new_beta3) diffB_onlyB(new_beta3, latentZ_mat , j = 3), 
+  start = candi_before_vec[3])
+  new_beta3 = result3$root
   ################
   
 
@@ -146,94 +152,3 @@ if(parameter_diff<1e-6){
 }
 
 colnames(theta_df) <- column_names
-# write.csv(theta_df_full,"init_para.csv",row.names = F)
-
-
-
-
-
-
-
-
-
-# data.frame(beta1=beta_vec[1],beta3=beta_vec[3],
-#            lambda1=lambda_vec[1],lambda3=lambda_vec[3],
-#            diffBeta1=diffB_onlyB(beta_vec[1],latentZ_mat,j=1),
-#            diffBeta3=diffB_onlyB(beta_vec[3],latentZ_mat,j=3),
-#            pi1=pi_vec[1],
-#            pi2=pi_vec[2],
-#            pi3=pi_vec[3],
-#            init_beta1 = initial_beta[1],
-#            init_beta2 = initial_beta[2],
-#            init_beta3 = initial_beta[3],
-#            init_pi1   = initial_pi[1],
-#            init_pi2   = initial_pi[2],
-#            init_pi3   = initial_pi[3],
-# )
-
-
-# theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=sumQfunc %>% as.numeric()))+geom_point()+geom_line()+ggtitle("sumQfunc")
-
-
-# colnames(theta_df) <- column_names
-# theta_df$beta1 = as.numeric(theta_df$beta1)
-# # plot(theta_df[,'sumQfunc'])
-# tail(theta_df)
-# # theta_df
-# p1=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=sumQfunc %>% as.numeric()))+geom_point()+geom_line()+ggtitle("sumQfunc")
-# p2=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=beta1 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("Beta1")
-# p3=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=beta3 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("Beta3")
-
-# p4=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=diffB_beta1 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("diffB_beta1")
-# p5=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=diffB_beta3 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("diffB_beta3")
-
-# p6=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=Q1 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("Q1")
-# p7=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=Q2 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("Q2")
-# p8=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=Q3 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("Q3")
-# # 두 개의 그림을 결합하여 하나로 표시
-# combined_plot <- p1+p2+p3+p4+p5+p6+p7+p8
-
-# # 결합된 그림을 출력
-# print(combined_plot)
-
-
-# aa=latent_1 %>% mutate(total=V1+V2+V3)
-# bb=latent_3 %>% mutate(total=V1+V2+V3)
-# # plot(theta_df[,"sumQfunc"])
-
-# plot(aa[1:27,"total"])
-# plot(aa[,"total"])
-# # theta_df[26,]
-
-# plot(aa[,"V1"])
-# plot(aa[,"V2"])
-# plot(aa[,"V3"])
-# plot(aa[,"total"])
-
-
-
-
-
-# k1=30
-# A1=weibull_func(time_vec,theta_df$beta1[k1] %>% as.numeric(),theta_df$lambda1[k1] %>% as.numeric()) 
-# A2=weibull_func(time_vec,theta_df$beta2[k1] %>% as.numeric(),theta_df$lambda2[k1] %>% as.numeric()) 
-# A3=weibull_func(time_vec,theta_df$beta3[k1] %>% as.numeric(),theta_df$lambda3[k1] %>% as.numeric()) 
-
-# k2=15
-# B1=weibull_func(time_vec,theta_df$beta1[k2] %>% as.numeric(),theta_df$lambda1[k2] %>% as.numeric()) 
-# B2=weibull_func(time_vec,theta_df$beta2[k2] %>% as.numeric(),theta_df$lambda2[k2] %>% as.numeric()) 
-# B3=weibull_func(time_vec,theta_df$beta3[k2] %>% as.numeric(),theta_df$lambda3[k2] %>% as.numeric()) 
-
-
-# ppd=data.frame(time = 1:length(A1),A1,A2,A3,B1,B2,B3)
-# ppd %>% ggplot(aes(x=time,y=A1 %>% log))+geom_line(color="red")+
-#   geom_line(data=ppd,aes(x=time,y=B1 %>% log),color="blue")
-
-# ppd %>% ggplot(aes(x=time,y=A1 ))+geom_line(color="red")+
-#   geom_line(data=ppd,aes(x=time,y=B1 ),color="blue")
-
-# ppd %>% ggplot(aes(x=time,y=A2 %>% log))+geom_line(color="red")+
-#   geom_line(data=ppd,aes(x=time,y=B2 %>% log),color="blue")
-
-# ppd %>% ggplot(aes(x=time,y=A3 %>% log))+geom_line(color="red")+
-#   geom_line(data=ppd,aes(x=time,y=B3 %>% log),color="blue")

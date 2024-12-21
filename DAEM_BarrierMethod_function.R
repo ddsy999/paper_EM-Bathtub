@@ -1,10 +1,14 @@
-
 library(reshape2)
 library(dplyr)
 library(ggplot2)
 library(patchwork)
 
+if (!requireNamespace("rootSolve", quietly = TRUE)) {
+  install.packages("rootSolve")
+}
+library(rootSolve)
 
+theta_df_full = NULL
 ####### Denote function ####
 
 Qfunc = function(beta = 1 ,lambda, latentZ_mat, j=1){
@@ -51,7 +55,7 @@ barrierFunc_1 = function(beta,latentZ_mat,bp){
 }
 
 barrierFunc_3 = function(beta,latentZ_mat,bp){
-  result =  diffB_onlyB(beta, latentZ_mat, j=3)+log(beta-1))/bp
+  result =  diffB_onlyB(beta, latentZ_mat, j=3)+(1/(beta-1))/bp
   return(result)
 }
 
@@ -86,62 +90,6 @@ find_zero_new_beta3 <- function(latentZ_mat, j = 3, interval = c(1, 200)) {
 }
 
 
-barrier_beta1_NR = function(beta,latentZ_mat,j,bp){
-  stepsize = 1e-3
-  if( diffB_onlyB(1,latentZ_mat,j=1)<0){
-    beta_candi = find_zero_new_beta1(latentZ_mat, j=1)
-  }else{
-    while(TRUE){
-      gradient = diffB_onlyBeta1_with_Barrier(beta,latentZ_mat,j,bp)
-      beta_candi = beta + stepSize_func(gradient,beta,stepsize)
-      if(abs(diffB_onlyB(beta_candi,latentZ_mat,j=1))<1e-3){break}else{
-        stepsize = 0.1*stepsize
-      }
-      if(beta_candi>1){
-        # print("!!!!!!!!! Beta1 Over 1 !!!!!!!!!!")
-        beta_candi = (beta+0.999)/2}
-      if(beta_candi<0){beta_candi = beta/2}
-      if(abs(beta_candi-beta)<tot){break}
-      beta = beta_candi
-    }
-  }
-  return(beta_candi)
-}
-
-
-barrier_beta3_NR = function(beta,latentZ_mat,j,bp){
-  stepsize = 1e-3
-  if( diffB_onlyB(1,latentZ_mat,j=3)>0){
-    beta_candi = find_zero_new_beta3(latentZ_mat, j=3)
-  }else{
-    while(TRUE){
-      gradient = diffB_onlyBeta3_with_Barrier(beta,latentZ_mat,j,bp)
-      beta_candi = beta + stepSize_func(gradient,beta,stepsize)
-      
-      if(abs(diffB_onlyB(beta_candi,latentZ_mat,j=3))<1e-3){break}else{
-        stepsize = 0.1*stepsize
-      }
-      
-      if(beta_candi<1){beta_candi = (1+beta)/2}
-      if(abs(beta_candi-beta)<tot){break}
-      beta = beta_candi
-    }
-  }
-  return(beta_candi)
-}
-
-stepSize_func = function(grad,beta,step_size){
-  grad_size = abs(grad)
-  if(grad_size<step_size){
-    grad_step = grad
-  }else{
-    while(grad_size>step_size){
-      grad_size = grad_size/10
-    }
-    grad_step = sign(grad)*grad_size
-  }
-  return(grad_step)
-}
 
 barrier_beta1 = function(beta,latentZ_mat,bp){
   result <- uniroot(function(beta) barrierFunc_1(beta,latentZ_mat,bp),
@@ -151,10 +99,65 @@ barrier_beta1 = function(beta,latentZ_mat,bp){
 
 
 barrier_beta3 = function(beta,latentZ_mat,bp){
-  result <- uniroot(function(beta) barrierFunc_3(beta,latentZ_mat,bp),
-  interval = c(1, beta*2),tol=1e-10)
+  maxt = 2*beta
+  while(T){
+    if(diffB_onlyB(maxt,latentZ_mat ,j=3)<0){break
+    }else{
+      maxt=2*maxt
+    }
+  }
+  # print(maxt)
+  result = uniroot(function(beta) barrierFunc_3(beta,latentZ_mat,bp),
+  interval = c(1, maxt),tol=1e-10)
   return(result$root)
 }
+
+
+
+
+
+
+initial_lambda_calc = function(time_vec,event_vec){
+  library(survival)
+  surv_obj <- Surv(time_vec, event_vec)
+  km_fit <- survfit(surv_obj ~ 1)
+  cum_hazard <- cumsum(km_fit$n.event / km_fit$n.risk)
+  hazard_rate <- diff(cum_hazard) / diff(km_fit$time)
+  # plot(hazard_rate)
+
+  censored1 = 5
+  censored3 = 25
+
+  # censored1까지의 시간 벡터 및 위험률 추출
+  time_censored1 <-unique(time_vec)[1:censored1]
+  # beta_vec[1]을 사용하여 시간 벡터를 제곱
+  time_transformed1 <- beta_vec[1]*time_censored1^(beta_vec[1]-1)
+  # 위험률 벡터의 검열된 값 추출
+  hazard_censored1 <- hazard_rate[1:censored1]
+  # 선형 회귀 실행
+  lm_fit1 <- lm(hazard_censored1 ~ time_transformed1)
+
+  # censored3 시간 벡터 및 위험률 추출
+  time_censored3 <-unique(time_vec)[censored3:length(cum_hazard)]
+  time_transformed3 <- beta_vec[3]*time_censored3^(beta_vec[3]-1)
+  # 위험률 벡터의 검열된 값 추출
+  hazard_censored3 <- hazard_rate[censored3:length(cum_hazard)]
+  # 선형 회귀 실행
+  lm_fit3 <- lm(hazard_censored3 ~ time_transformed3)
+
+
+
+  ## initial lambda
+  lambda_vec = c(lm_fit1$coefficients[2],mean(hazard_rate[censored1:censored3]),lm_fit3$coefficients[2]) %>% as.vector()
+  return(lambda_vec)
+}
+
+
+
+
+
+
+
 
 
 
