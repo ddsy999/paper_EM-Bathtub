@@ -7,8 +7,8 @@ source("DAEM_BarrierMethod_function.R")
 
 # Reading Data
 file_name = 'Aarest_data.txt'
-file_name = 'Aarest_data_censored_rot5.txt'
-file_name = 'Aarest_data_rightcensored.txt'
+# file_name = 'Aarest_data_censored_rot5.txt'
+# file_name = 'Aarest_data_rightcensored.txt'
 fdata = read.table(file_name,header = T)
 
 # Data preprocessing
@@ -18,8 +18,7 @@ event_vec = fdata[,2] %>% as.numeric()
 time_vec = fdata[,1]%>% as.numeric()
 # time_vec = time_vec/(max(time_vec)*1.1)
 tot=1e-8
-maxBp = 1e+5
-learning_rate = 1.01
+
 
 # 11개의 열을 가진 빈 result data.frame 생성
 column_names <- c("beta1", "lambda1", "beta2", "lambda2", "beta3", "lambda3", "sumQfunc","diffB_beta1","diffB_beta3","bp","iter","Beta1 at 1","Q1","Q2","Q3","pi1","pi2","pi3")
@@ -37,7 +36,11 @@ initial_lambda = c(
 as.numeric(1/initial_beta[1])^(-initial_beta[1]),
 as.numeric(40/initial_beta[2])^(-initial_beta[2]),
 as.numeric(400/initial_beta[3])^(-initial_beta[3]))
+initial_lambda[3]=1e-5
+initial_lambda[3]=1e-4
 # initial_lambda = c(1,0.1,1000)
+# initial_lambda = initial_lambda_calc(time_vec,event_vec,beta_vec=initial_beta)
+
 beta_vec = initial_beta
 pi_vec = initial_pi
 lambda_vec = initial_lambda
@@ -54,7 +57,7 @@ objective_function3 <- function(new_beta1) {
 }
 
 
-for( iter in 1:100){ 
+for( iter in 1:200){ 
   print("#####################################################################################################################")
   print( paste0( "EM iteration : " , iter ," sumQ :",sumQfunc(beta_vec,lambda_vec,latentZ_mat)))
   print(paste0(c("pi_vec : " , sapply(pi_vec , function(i) round(i,2))),collapse = " / "))
@@ -87,7 +90,7 @@ for( iter in 1:100){
   start = candi_before_vec[3])
   new_beta3 = result3$root
   ################
-  
+
 
   #### Update Parameter ####
   new_beta = c(new_beta1,1,new_beta3)
@@ -149,6 +152,10 @@ if(parameter_diff<1e-6){
   #### E-Step ####
   latentZ_mat = Estep_result(beta_vec,lambda_vec,pi_vec,alpha=alpha_temper)
 
+
+# if(beta_vec[1]<0 || beta_vec[1]>2){break}
 }
 
 colnames(theta_df) <- column_names
+
+tail(theta_df,3)

@@ -77,18 +77,6 @@ Estep_result = function(beta,lambda,pi_vec,alpha=1){
              V3=wpdf3/sumWeibull)
 }
 
-find_zero_new_beta1 <- function(latentZ_mat, j = 1, interval = c(0, 1)) {
-  result <- uniroot(function(new_beta1) diffB_onlyB(new_beta1, latentZ_mat, j),
-  interval = interval,tol=1e-10)
-  return(result$root)
-}
-
-find_zero_new_beta3 <- function(latentZ_mat, j = 3, interval = c(1, 200)) {
-  result <- uniroot(function(new_beta3) diffB_onlyB(new_beta3, latentZ_mat, j),
-  interval = interval,tol=1e-10)
-  return(result$root)
-}
-
 
 
 barrier_beta1 = function(beta,latentZ_mat,bp){
@@ -106,7 +94,7 @@ barrier_beta3 = function(beta,latentZ_mat,bp){
       maxt=2*maxt
     }
   }
-  # print(maxt)
+  print(maxt)
   result = uniroot(function(beta) barrierFunc_3(beta,latentZ_mat,bp),
   interval = c(1, maxt),tol=1e-10)
   return(result$root)
@@ -117,7 +105,7 @@ barrier_beta3 = function(beta,latentZ_mat,bp){
 
 
 
-initial_lambda_calc = function(time_vec,event_vec){
+initial_lambda_calc = function(time_vec,event_vec,beta_vec){
   library(survival)
   surv_obj <- Surv(time_vec, event_vec)
   km_fit <- survfit(surv_obj ~ 1)
@@ -138,10 +126,10 @@ initial_lambda_calc = function(time_vec,event_vec){
   lm_fit1 <- lm(hazard_censored1 ~ time_transformed1)
 
   # censored3 시간 벡터 및 위험률 추출
-  time_censored3 <-unique(time_vec)[censored3:length(cum_hazard)]
+  time_censored3 <-unique(time_vec)[censored1:length(cum_hazard)]
   time_transformed3 <- beta_vec[3]*time_censored3^(beta_vec[3]-1)
   # 위험률 벡터의 검열된 값 추출
-  hazard_censored3 <- hazard_rate[censored3:length(cum_hazard)]
+  hazard_censored3 <- hazard_rate[censored1:length(cum_hazard)]
   # 선형 회귀 실행
   lm_fit3 <- lm(hazard_censored3 ~ time_transformed3)
 

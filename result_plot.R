@@ -19,9 +19,6 @@ print(combined_plot)
 
 
 
-
-
-
 initial_latent_varialbe = result_latentZ_mat[[1]]
 middle_latent_varialbe = result_latentZ_mat[[floor(length(result_latentZ_mat)/2)]]
 final_latent_varialbe = result_latentZ_mat[[length(result_latentZ_mat)]]
