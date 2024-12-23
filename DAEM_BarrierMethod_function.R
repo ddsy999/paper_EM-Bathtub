@@ -49,15 +49,6 @@ diffB_onlyB = function(beta,latentZ_mat,j){
 }
 
 
-barrierFunc_1 = function(beta,latentZ_mat,bp){
-  result =  diffB_onlyB(beta, latentZ_mat, j=1)+(1/beta -1/(1-beta))*(1/bp)
-  return(result)
-}
-
-barrierFunc_3 = function(beta,latentZ_mat,bp){
-  result =  diffB_onlyB(beta, latentZ_mat, j=3)+(1/(beta-1))/bp
-  return(result)
-}
 
 DecisionBoundary = function(t,beta_vec,lambda_vec,j=1){
   (pi_vec[j]/pi_vec[2])*(beta_vec[j]/beta_vec[2])*(lambda_vec[j]/lambda_vec[2])*t^(beta_vec[j]-1)*exp(-lambda_vec[j]*t^{beta_vec[j]}+lambda_vec[2]*t)
@@ -78,6 +69,15 @@ Estep_result = function(beta,lambda,pi_vec,alpha=1){
 }
 
 
+barrierFunc_1 = function(beta,latentZ_mat,bp){
+  result =  diffB_onlyB(beta, latentZ_mat, j=1)+(1/beta -1/(1-beta))*(1/bp)
+  return(result)
+}
+
+barrierFunc_3 = function(beta,latentZ_mat,bp){
+  result =  diffB_onlyB(beta, latentZ_mat, j=3)+(1/(beta-1)+1/(beta-500))*(1/bp)
+  return(result)
+}
 
 barrier_beta1 = function(beta,latentZ_mat,bp){
   result <- uniroot(function(beta) barrierFunc_1(beta,latentZ_mat,bp),
@@ -85,27 +85,48 @@ barrier_beta1 = function(beta,latentZ_mat,bp){
   return(result$root)
 }
 
-
 barrier_beta3 = function(beta,latentZ_mat,bp){
-  maxt = 2*beta
-  while(T){
-    if(diffB_onlyB(maxt,latentZ_mat ,j=3)<0){break
-    }else{
-      maxt=2*maxt
-    }
-  }
-  print(maxt)
   result = uniroot(function(beta) barrierFunc_3(beta,latentZ_mat,bp),
-  interval = c(1, maxt),tol=1e-10)
+  interval = c(1, 500),tol=1e-10)
   return(result$root)
 }
 
+# barrier_beta3 <- function(beta, latentZ_mat, bp) {
+#   # 초기 상한값 설정
+#   lower <- 1
+#   upper <- 300
+#   
+#   # 함수 정의
+#   test_func <- function(beta) barrierFunc_3(beta, latentZ_mat, bp)
+#   
+#   # 상한값을 점진적으로 확장하여 NA가 아닌 값을 찾음
+#   while (is.na(test_func(upper)) || is.infinite(test_func(upper))) {
+#     cat("Upper bound:", upper, "-> Value is NA or Inf. Expanding...\n")
+#     upper <- upper * 1.1  # 상한값을 2배로 확장
+#     if (upper > 1e6) {  # 상한값이 너무 커지는 경우 종료
+#       stop("Upper bound could not be determined within a reasonable range.")
+#     }
+#   }
+#   
+#   # 상한값에서 함수 값이 음수인지 확인
+#   while (test_func(upper) > 0) {
+#     cat("Upper bound:", upper, "-> Value is positive. Expanding...\n")
+#     upper <- upper + 100  # 상한값을 조금씩 확장
+#     if (upper > 1e6) {  # 상한값이 너무 커지는 경우 종료
+#       stop("Upper bound could not be determined within a reasonable range.")
+#     }
+#   }
+#   
+#   # 구간 내에서 근 찾기
+#   result <- uniroot(test_func, interval = c(lower, upper), tol = 1e-10)
+#   return(result$root)
+# }
 
 
 
 
 
-initial_lambda_calc = function(time_vec,event_vec,beta_vec){
+initial_lambda_calc = function(time_vec,event_vec,beta_vec,censored1,censored3){
   library(survival)
   surv_obj <- Surv(time_vec, event_vec)
   km_fit <- survfit(surv_obj ~ 1)
@@ -113,9 +134,8 @@ initial_lambda_calc = function(time_vec,event_vec,beta_vec){
   hazard_rate <- diff(cum_hazard) / diff(km_fit$time)
   # plot(hazard_rate)
 
-  censored1 = 5
-  censored3 = 25
-
+  # censored1 = floor((length(time_vec))/10)+1
+  # censored3 = floor((length(time_vec))*0.6)
   # censored1까지의 시간 벡터 및 위험률 추출
   time_censored1 <-unique(time_vec)[1:censored1]
   # beta_vec[1]을 사용하여 시간 벡터를 제곱
@@ -136,7 +156,7 @@ initial_lambda_calc = function(time_vec,event_vec,beta_vec){
 
 
   ## initial lambda
-  lambda_vec = c(lm_fit1$coefficients[2],mean(hazard_rate[censored1:censored3]),lm_fit3$coefficients[2]) %>% as.vector()
+  lambda_vec = c(abs(lm_fit1$coefficients[2]),abs(mean(hazard_rate[censored1:censored3],na.rm=T)),abs(lm_fit3$coefficients[2]) )%>% as.vector()
   return(lambda_vec)
 }
 
