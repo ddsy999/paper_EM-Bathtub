@@ -75,7 +75,7 @@ barrierFunc_1 = function(beta,latentZ_mat,bp){
 }
 
 barrierFunc_3 = function(beta,latentZ_mat,bp){
-  result =  diffB_onlyB(beta, latentZ_mat, j=3)+(1/(beta-1)+1/(beta-500))*(1/bp)
+  result =  diffB_onlyB(beta, latentZ_mat, j=3)+(1/(beta-1)+1/(beta-600))*(1/bp)
   return(result)
 }
 
@@ -86,42 +86,15 @@ barrier_beta1 = function(beta,latentZ_mat,bp){
 }
 
 barrier_beta3 = function(beta,latentZ_mat,bp){
+  maxRange=beta
+  while(!is.na(diffB_onlyB(maxRange, latentZ_mat, j=3))){
+  maxRange=maxRange+1
+  }
+  maxRange = maxRange - 1
   result = uniroot(function(beta) barrierFunc_3(beta,latentZ_mat,bp),
-  interval = c(1, 500),tol=1e-10)
+  interval = c(1, maxRange),tol=1e-10)
   return(result$root)
 }
-
-# barrier_beta3 <- function(beta, latentZ_mat, bp) {
-#   # 초기 상한값 설정
-#   lower <- 1
-#   upper <- 300
-#   
-#   # 함수 정의
-#   test_func <- function(beta) barrierFunc_3(beta, latentZ_mat, bp)
-#   
-#   # 상한값을 점진적으로 확장하여 NA가 아닌 값을 찾음
-#   while (is.na(test_func(upper)) || is.infinite(test_func(upper))) {
-#     cat("Upper bound:", upper, "-> Value is NA or Inf. Expanding...\n")
-#     upper <- upper * 1.1  # 상한값을 2배로 확장
-#     if (upper > 1e6) {  # 상한값이 너무 커지는 경우 종료
-#       stop("Upper bound could not be determined within a reasonable range.")
-#     }
-#   }
-#   
-#   # 상한값에서 함수 값이 음수인지 확인
-#   while (test_func(upper) > 0) {
-#     cat("Upper bound:", upper, "-> Value is positive. Expanding...\n")
-#     upper <- upper + 100  # 상한값을 조금씩 확장
-#     if (upper > 1e6) {  # 상한값이 너무 커지는 경우 종료
-#       stop("Upper bound could not be determined within a reasonable range.")
-#     }
-#   }
-#   
-#   # 구간 내에서 근 찾기
-#   result <- uniroot(test_func, interval = c(lower, upper), tol = 1e-10)
-#   return(result$root)
-# }
-
 
 
 

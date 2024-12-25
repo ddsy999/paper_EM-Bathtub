@@ -33,10 +33,12 @@ geom_line(data=final_latent_varialbe,aes(x=time_vec,y=Z1),color="red")+
 geom_line(data=final_latent_varialbe,aes(x=time_vec,y=Z3),color="red")
 
 
+z1 = ggplot(middle_latent_varialbe,aes(x=time_vec,y=Z1),color="black")+
+geom_line()+geom_line(data=final_latent_varialbe,aes(x=time_vec,y=Z1),color="red")
+z2 = ggplot(middle_latent_varialbe,aes(x=time_vec,y=Z3),color="black")+
+geom_line()+geom_line(data=final_latent_varialbe,aes(x=time_vec,y=Z3),color="red")
 
-
-
-
+print(z1+z2)
 
 
 

@@ -3,9 +3,9 @@ source("DAEM_BarrierMethod_function.R")
 
 # Reading Data
 # file_name = 'Aarest_data.txt'
-# file_name = 'FRT_censord.txt'
+file_name = 'FRT_censord.txt'
 # file_name = 'Aarest_data_censored_rot5.txt'
-file_name = 'Aarest_data_rightcensored.txt'
+# file_name = 'Aarest_data_rightcensored.txt'
 fdata = read.table(file_name,header = T)
 
 # Data preprocessing
@@ -26,7 +26,8 @@ result_latentZ_mat = list()
 
 
 ## initial Parameter : beta , lambda , pi
-initial_beta = c(0.5,1,5)
+# initial_beta = c(0.5,1,5)
+initial_beta = c(0.1,1,20)
 initial_pi_set = c(1,1,1)
 initial_pi = initial_pi_set / sum(initial_pi_set)
 # initial_lambda = c(
@@ -36,9 +37,10 @@ initial_pi = initial_pi_set / sum(initial_pi_set)
 # initial_lambda[3]=1e-5
 # initial_lambda[3]=1e-4
 # initial_lambda = c(1,0.1,1000)
-initial_lambda = initial_lambda_calc(time_vec,event_vec,beta_vec=initial_beta,censored1 = 3,censored3 = 20)
+initial_lambda = initial_lambda_calc(time_vec,event_vec,
+beta_vec=initial_beta,censored1 = 15,censored3 = 19)
 
-
+length(unique(time_vec))
 
 beta_vec = initial_beta
 pi_vec = initial_pi
@@ -125,8 +127,8 @@ for( iter in 1:maxIter){
 result_latentZ_mat[[iter]]=latentZ_mat
   
 #### Stopping rule ####
-alpha_temper = 0.9
-if(parameter_diff<1e-10){
+alpha_temper = 0.8
+if(parameter_diff<1e-7){
   print("!!!!!!!!!!!!!!!!!!!! parameter diff Break !!!!!!!!!!!!!!!")
   theta_df_full = rbind(theta_df_full,
   data.frame(beta1=beta_vec[1],beta3=beta_vec[3],

@@ -1,8 +1,11 @@
 source("DAEM_BarrierMethod_function.R")
 
+
 # Reading Data
-file_name = 'Aarest_data.txt'
-# file_name = 'FRT_censord.txt'
+# file_name = 'Aarest_data.txt'
+file_name = 'FRT_censord.txt'
+# file_name = 'Aarest_data_censored_rot5.txt'
+# file_name = 'Aarest_data_rightcensored.txt'
 fdata = read.table(file_name,header = T)
 
 # Data preprocessing
@@ -10,12 +13,9 @@ N = nrow(fdata)
 k=3 
 event_vec = fdata[,2] %>% as.numeric()
 time_vec = fdata[,1]%>% as.numeric()
-time_vec = time_vec+1
 # time_vec = time_vec/(max(time_vec)*1.1)
 tot=1e-8
-maxIter=300
-learningRate = 1.1
-learningRateBp = 2
+maxIter = 300
 
 # 11개의 열을 가진 빈 result data.frame 생성
 column_names <- c("beta1", "lambda1", "beta2", "lambda2", "beta3", "lambda3", "sumQfunc","diffB_beta1","diffB_beta3","bp","iter","Beta1 at 1","Q1","Q2","Q3","pi1","pi2","pi3")
@@ -23,23 +23,24 @@ theta_df <- data.frame(matrix(ncol = length(column_names), nrow = 0))
 colnames(theta_df) <- column_names
 result_latentZ_mat = list()
 
+
+
 ## initial Parameter : beta , lambda , pi
 # initial_beta = c(0.5,1,5)
-initial_beta = c(0.5,1,5)
+initial_beta = c(0.1,1,20)
 initial_pi_set = c(1,1,1)
 initial_pi = initial_pi_set / sum(initial_pi_set)
 # initial_lambda = c(
 # as.numeric(1/initial_beta[1])^(-initial_beta[1]),
 # as.numeric(40/initial_beta[2])^(-initial_beta[2]),
 # as.numeric(400/initial_beta[3])^(-initial_beta[3]))
+# initial_lambda[3]=1e-5
+# initial_lambda[3]=1e-4
 # initial_lambda = c(1,0.1,1000)
 initial_lambda = initial_lambda_calc(time_vec,event_vec,
-initial_beta,censored1 = 3,censored3 = 40)
-# initial_lambda = initial_lambda_calc(time_vec,event_vec,
-# beta_vec=initial_beta,censored1 = 15,censored3 = 19)
-# initial_lambda[3]=2e-12
-bpBase  = 1e+2
-betaTot = 1e-4
+beta_vec=initial_beta,censored1 = 15,censored3 = 19)
+
+length(unique(time_vec))
 
 beta_vec = initial_beta
 pi_vec = initial_pi
@@ -47,7 +48,15 @@ lambda_vec = initial_lambda
 ## initial latent variable 
 latentZ_mat = Estep_result(beta_vec,lambda_vec,pi_vec,alpha=1)
 
-diffB_onlyB(1,latentZ_mat ,j=1)
+
+objective_function1 <- function(new_beta1) {
+  diffB_onlyB(new_beta1, latentZ_mat , j = 1)
+}
+
+objective_function3 <- function(new_beta1) {
+  diffB_onlyB(new_beta3, latentZ_mat , j = 3)
+}
+
 
 for( iter in 1:maxIter){ 
   print("#####################################################################################################################")
@@ -71,31 +80,18 @@ for( iter in 1:maxIter){
 
   ###############
   print(" ### Beta1 Update ###")
-  bpBase=bpBase*learningRateBp
-  betaTot = betaTot/learningRate
+  result1 = multiroot(
+  f = function(new_beta1) diffB_onlyB(new_beta1, latentZ_mat , j = 1), 
+  start = candi_before_vec[1])
+  new_beta1 = result1$root
 
-  print(diffB_onlyB(1,latentZ_mat ,j=1))
-  bp1=bpBase
-  for( i in 1:10000){
-    bp1=bp1*learningRate
-    new_beta1 = barrier_beta1(candi_before_vec[1],latentZ_mat,bp=bp1 )
-    if(abs(barrierFunc_1(new_beta1,latentZ_mat,bp1))<betaTot){break}
-  }
-  
   print(" ### Beta3 Update ###")
-  bp3=bpBase
-  for( i in 1:10000){
-    bp3=bp3*learningRate
-    new_beta3 = barrier_beta3(candi_before_vec[3],latentZ_mat,bp=bp3 )
-    if(abs(barrierFunc_3(new_beta3,latentZ_mat,bp3))<betaTot){break}
-  }
-
-# diffB_onlyB(candi_before_vec[3], latentZ_mat, j=3)+(1/(candi_before_vec[3]-1)+1/(candi_before_vec[3]-500))*(1/bp3)
-# diffB_onlyB(candi_before_vec[3], latentZ_mat, j=3)+(1/(candi_before_vec[3]-1)+1/(candi_before_vec[3]-500))*(1/bp3)
-# diffB_onlyB(candi_before_vec[3], latentZ_mat, j=3)
-# diffB_onlyB(candi_before_vec[1], latentZ_mat, j=1)
-
+  result3 = multiroot(
+  f = function(new_beta3) diffB_onlyB(new_beta3, latentZ_mat , j = 3), 
+  start = candi_before_vec[3])
+  new_beta3 = result3$root
   ################
+
 
   #### Update Parameter ####
   new_beta = c(new_beta1,1,new_beta3)
@@ -131,8 +127,8 @@ for( iter in 1:maxIter){
 result_latentZ_mat[[iter]]=latentZ_mat
   
 #### Stopping rule ####
-alpha_temper = 0.5
-if(parameter_diff<1e-6){
+alpha_temper = 0.8
+if(parameter_diff<1e-7){
   print("!!!!!!!!!!!!!!!!!!!! parameter diff Break !!!!!!!!!!!!!!!")
   theta_df_full = rbind(theta_df_full,
   data.frame(beta1=beta_vec[1],beta3=beta_vec[3],
@@ -157,20 +153,12 @@ if(parameter_diff<1e-6){
   #### E-Step ####
   latentZ_mat = Estep_result(beta_vec,lambda_vec,pi_vec,alpha=alpha_temper)
 
+
+# if(beta_vec[1]<0 || beta_vec[1]>2){break}
 }
 
+colnames(theta_df) <- column_names
 
-diffB_onlyB(beta_vec[3], latentZ_mat, j=3)
-diffB_onlyB(beta_vec[1], latentZ_mat, j=1)
+tail(theta_df,3)
 
-# colnames(theta_df) <- column_names
-# # write.csv(theta_df_full,"init_para.csv",row.names = F)
-# tail(theta_df,3)
-
-# x=round((sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^(beta_vec[1]))))*time_vec^(beta_vec[1]),5)
-# x
-# x*exp(-x)
-# x=round((sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*(time_vec^(beta_vec[3]))))*time_vec^(beta_vec[3]),5)
-# x*exp(-x)
-
-# (sum(latentZ_mat[,1]*event_vec)/sum(latentZ_mat[,1]*(time_vec^(beta_vec[1]))))/(sum(latentZ_mat[,3]*event_vec)/sum(latentZ_mat[,3]*(time_vec^(beta_vec[3]))))
+# 위 예시에서 Ordinary EM + tempering 만 적용한게 안된다 
