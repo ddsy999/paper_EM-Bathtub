@@ -2,9 +2,9 @@ source("DAEM_BarrierMethod_function.R")
 
 
 # Reading Data
-# file_name = 'Aarest_data.txt'
-file_name = 'FRT_censord.txt'
-# file_name = 'Aarest_data_censored_rot5.txt'
+file_name = 'Aarest_data.txt'
+# file_name = 'FRT_censord.txt'
+# file_name = 'Aarest_data_censored_rot4.txt'
 # file_name = 'Aarest_data_rightcensored.txt'
 fdata = read.table(file_name,header = T)
 
@@ -15,7 +15,7 @@ event_vec = fdata[,2] %>% as.numeric()
 time_vec = fdata[,1]%>% as.numeric()
 # time_vec = time_vec/(max(time_vec)*1.1)
 tot=1e-8
-maxIter = 300
+maxIter = 2000
 
 # 11개의 열을 가진 빈 result data.frame 생성
 column_names <- c("beta1", "lambda1", "beta2", "lambda2", "beta3", "lambda3", "sumQfunc","diffB_beta1","diffB_beta3","bp","iter","Beta1 at 1","Q1","Q2","Q3","pi1","pi2","pi3")
@@ -27,18 +27,16 @@ result_latentZ_mat = list()
 
 ## initial Parameter : beta , lambda , pi
 # initial_beta = c(0.5,1,5)
-initial_beta = c(0.1,1,20)
+initial_beta = c(0.5,1,2)
 initial_pi_set = c(1,1,1)
 initial_pi = initial_pi_set / sum(initial_pi_set)
 # initial_lambda = c(
 # as.numeric(1/initial_beta[1])^(-initial_beta[1]),
 # as.numeric(40/initial_beta[2])^(-initial_beta[2]),
 # as.numeric(400/initial_beta[3])^(-initial_beta[3]))
-# initial_lambda[3]=1e-5
-# initial_lambda[3]=1e-4
-# initial_lambda = c(1,0.1,1000)
+
 initial_lambda = initial_lambda_calc(time_vec,event_vec,
-beta_vec=initial_beta,censored1 = 15,censored3 = 19)
+beta_vec=initial_beta,censored1 =5,censored3 = 10)
 
 length(unique(time_vec))
 
@@ -127,7 +125,7 @@ for( iter in 1:maxIter){
 result_latentZ_mat[[iter]]=latentZ_mat
   
 #### Stopping rule ####
-alpha_temper = 0.8
+alpha_temper = 1
 if(parameter_diff<1e-7){
   print("!!!!!!!!!!!!!!!!!!!! parameter diff Break !!!!!!!!!!!!!!!")
   theta_df_full = rbind(theta_df_full,
