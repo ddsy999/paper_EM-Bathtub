@@ -46,6 +46,7 @@ pi_vec = initial_pi
 lambda_vec = initial_lambda
 ## initial latent variable 
 latentZ_mat = Estep_result(beta_vec,lambda_vec,pi_vec,alpha=1)
+alpha_temper = annealingPara
 
 diffB_onlyB(1,latentZ_mat ,j=1)
 
@@ -131,7 +132,7 @@ for( iter in 1:maxIter){
 result_latentZ_mat[[iter]]=latentZ_mat
   
 #### Stopping rule ####
-alpha_temper = 0.5
+
 if(parameter_diff<1e-6){
   print("!!!!!!!!!!!!!!!!!!!! parameter diff Break !!!!!!!!!!!!!!!")
   theta_df_full = rbind(theta_df_full,
@@ -158,6 +159,7 @@ if(parameter_diff<1e-6){
   latentZ_mat = Estep_result(beta_vec,lambda_vec,pi_vec,alpha=alpha_temper)
 
 }
+
 
 
 diffB_onlyB(beta_vec[3], latentZ_mat, j=3)

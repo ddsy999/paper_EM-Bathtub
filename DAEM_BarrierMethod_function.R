@@ -69,13 +69,13 @@ Estep_result = function(beta,lambda,pi_vec,alpha=1){
 }
 
 
-barrierFunc_1 = function(beta,latentZ_mat,bp){
-  result =  diffB_onlyB(beta, latentZ_mat, j=1)+(1/beta -1/(1-beta))*(1/bp)
+barrierFunc_1 = function(beta,latentZ_mat,bp,barrierExist=1){
+  result =  diffB_onlyB(beta, latentZ_mat, j=1)+barrierExist*(1/beta -1/(1-beta))*(1/bp)
   return(result)
 }
 
-barrierFunc_3 = function(beta,latentZ_mat,bp){
-  result =  diffB_onlyB(beta, latentZ_mat, j=3)+(1/(beta-1)+1/(beta-600))*(1/bp)
+barrierFunc_3 = function(beta,latentZ_mat,bp,barrierExist=1){
+  result =  diffB_onlyB(beta, latentZ_mat, j=3)+barrierExist*1/(beta-1)*(1/bp)
   return(result)
 }
 
@@ -96,6 +96,70 @@ barrier_beta3 = function(beta,latentZ_mat,bp){
   return(result$root)
 }
 
+nobarrier_beta1 = function(beta,latentZ_mat,bp){
+  result <- uniroot(function(beta) barrierFunc_1(beta,latentZ_mat,bp,barrierExist=0),
+                    interval = c(0,1),tol=1e-10)
+  return(result$root)
+}
+
+nobarrier_beta3 = function(beta,latentZ_mat,bp){
+  maxRange=beta
+  while(!is.na(diffB_onlyB(maxRange, latentZ_mat, j=3))){
+    maxRange=maxRange+1
+  }
+  maxRange = maxRange - 1
+  result = uniroot(function(beta) barrierFunc_3(beta,latentZ_mat,bp,barrierExist=0),
+                   interval = c(1, maxRange),tol=1e-10)
+  return(result$root)
+}
+
+
+
+findBeta1 = function(){
+  beta <- tryCatch({
+    # nobarrier_beta1 실행
+    nobarrier_beta1(candi_before_vec[1], latentZ_mat, bp = bp1)
+  }, error = function(e) {
+    # 오류 발생 시 barrier_beta1 실행
+    barrier_beta1(candi_before_vec[1], latentZ_mat, bp = bp1)
+  })
+  
+  diff <- tryCatch({
+    # nobarrier_beta1 실행
+    betaIn = nobarrier_beta1(candi_before_vec[1], latentZ_mat, bp = bp1)
+    diffB_onlyB(beta, latentZ_mat, j=1)
+  }, error = function(e) {
+    # 오류 발생 시 barrier_beta1 실행
+    betaIn = barrier_beta1(candi_before_vec[1], latentZ_mat, bp = bp1)
+    barrierFunc_1(beta,latentZ_mat,bp1)
+  })
+  
+  result = list(beta=beta ,diff=diff)
+  return(result)
+}
+
+findBeta3 = function(){
+  beta <- tryCatch({
+    # nobarrier_beta1 실행
+    nobarrier_beta3(candi_before_vec[3], latentZ_mat, bp = bp3)
+  }, error = function(e) {
+    # 오류 발생 시 barrier_beta1 실행
+    barrier_beta3(candi_before_vec[3], latentZ_mat, bp = bp3)
+  })
+  
+  diff <- tryCatch({
+    # nobarrier_beta1 실행
+    betaIn = nobarrier_beta3(candi_before_vec[3], latentZ_mat, bp = bp3)
+    diffB_onlyB(beta, latentZ_mat, j=3)
+  }, error = function(e) {
+    # 오류 발생 시 barrier_beta1 실행
+    betaIn = barrier_beta3(candi_before_vec[3], latentZ_mat, bp = bp3)
+    barrierFunc_3(beta,latentZ_mat,bp3)
+  })
+
+  result = list(beta=beta ,diff=diff)
+  return(result)
+}
 
 
 
@@ -134,7 +198,22 @@ initial_lambda_calc = function(time_vec,event_vec,beta_vec,censored1,censored3){
 }
 
 
-
+printResult = function(){
+  print("#####################################################################################################################")
+  print( paste0( "EM iteration : " ,ITerAnneal ," / " , iter ," / "," sumQ :",sumQfunc(beta_vec,lambda_vec,latentZ_mat)))
+  print( paste0( "Annealing : " ,annealingPara))
+  print(paste0(c("pi_vec : " , sapply(pi_vec , function(i) round(i,2))),collapse = " / "))
+  print(paste0(c("Lambda : " , sapply(lambda_vec , function(i) round(i,4))),collapse = " / "))
+  print(paste0(c("Beta :",sapply(beta_vec , function(i) round(i,4))) ,collapse = " / "))
+  print(paste0("Beta diff : " , diffB_onlyB(beta_vec[1],latentZ_mat,j=1) %>% abs+ diffB_onlyB(beta_vec[3],latentZ_mat,j=3) %>% abs))
+  print(paste0(c("Beta1 at 1 is minus :",diffB_onlyB(1,latentZ_mat,j=1)<0,diffB_onlyB(1,latentZ_mat,j=1)) ,collapse = " / "))
+  print(paste0(c("Beta1 at 3 is positive :",diffB_onlyB(1,latentZ_mat,j=3)>0,diffB_onlyB(1,latentZ_mat,j=3)) ,collapse = " / "))
+  print(paste0(" data save : ", nrow(theta_df)))
+  print(paste0(" bpBase : ", bpBase ))
+  print(paste0(" bp1 , bp3 : ", bp1 , "/", bp3 ))
+  print(paste0(" betaTot : ", betaTot )) 
+  print("#####################################################################################################################")
+}
 
 
 
