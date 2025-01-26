@@ -2,13 +2,18 @@ library(reshape2)
 library(dplyr)
 library(ggplot2)
 library(patchwork)
+library(survival)
+library(ggbreak)
+library(cowplot)
+library(gridExtra)
+library(grid)
 
 if (!requireNamespace("rootSolve", quietly = TRUE)) {
   install.packages("rootSolve")
 }
 library(rootSolve)
 
-theta_df_full = NULL
+
 ####### Denote function ####
 
 Qfunc = function(beta = 1 ,lambda, latentZ_mat, j=1){
@@ -31,9 +36,9 @@ sumQfunc = function(beta_vec,lambda_vec,latentZ_mat ){
 }
 
 
-# hazardrate = function(t,beta,lambda){
-#   beta*lambda *t^(beta-1)
-# }
+hazardrate = function(t,beta,lambda){
+  beta*lambda *t^(beta-1)
+}
 
 weibull_func = function(t,beta,lambda){
   lambda*beta*t^(beta-1)*exp(-lambda*(t^beta))
@@ -48,7 +53,9 @@ diffB_onlyB = function(beta,latentZ_mat,j){
     sum(latentZ_mat[,j]*event_vec)*sum(latentZ_mat[,j]*(time_vec^beta)*log(time_vec))/sum(latentZ_mat[,j]*(time_vec^beta))
 }
 
-
+diffL = function(beta,lambda,latentZ_mat,j){
+  sum(latentZ_mat[,j]*(event_vec/lambda - time_vec^beta))
+}
 
 DecisionBoundary = function(t,beta_vec,lambda_vec,j=1){
   (pi_vec[j]/pi_vec[2])*(beta_vec[j]/beta_vec[2])*(lambda_vec[j]/lambda_vec[2])*t^(beta_vec[j]-1)*exp(-lambda_vec[j]*t^{beta_vec[j]}+lambda_vec[2]*t)
@@ -75,7 +82,8 @@ barrierFunc_1 = function(beta,latentZ_mat,bp,barrierExist=1){
 }
 
 barrierFunc_3 = function(beta,latentZ_mat,bp,barrierExist=1){
-  result =  diffB_onlyB(beta, latentZ_mat, j=3)+barrierExist*1/(beta-1)*(1/bp)
+  result =  diffB_onlyB(beta, latentZ_mat, j=3)+barrierExist*(1/bp)*(1/(beta-1))
+  # result =  diffB_onlyB(beta, latentZ_mat, j=3)+barrierExist*(1/bp)*(1/(beta-1)-1/(500-beta))
   return(result)
 }
 
@@ -87,9 +95,17 @@ barrier_beta1 = function(beta,latentZ_mat,bp){
 
 barrier_beta3 = function(beta,latentZ_mat,bp){
   maxRange=beta
-  while(!is.na(diffB_onlyB(maxRange, latentZ_mat, j=3))){
+  # while(!is.na(diffB_onlyB(maxRange, latentZ_mat, j=3))&& !is.na(barrierFunc_3(maxRange,latentZ_mat,bp))){
+  while(!is.na(barrierFunc_3(maxRange,latentZ_mat,bp))){
   maxRange=maxRange+1
   }
+  # print(maxRange)
+  # print(bp)
+  # print(barrierFunc_3(maxRange,latentZ_mat,bp))
+  # while (barrierFunc_3(maxRange,latentZ_mat,bp)<0 && !is.na(barrierFunc_3(maxRange,latentZ_mat,bp)) ) {
+  #   bp = bp*1.1
+  #   print(bp)
+  # }
   maxRange = maxRange - 1
   result = uniroot(function(beta) barrierFunc_3(beta,latentZ_mat,bp),
   interval = c(1, maxRange),tol=1e-10)
@@ -198,6 +214,9 @@ initial_lambda_calc = function(time_vec,event_vec,beta_vec,censored1,censored3){
 }
 
 
+
+
+
 printResult = function(){
   print("#####################################################################################################################")
   print( paste0( "EM iteration : " ,ITerAnneal ," / " , iter ," / "," sumQ :",sumQfunc(beta_vec,lambda_vec,latentZ_mat)))
@@ -210,17 +229,71 @@ printResult = function(){
   print(paste0(c("Beta1 at 3 is positive :",diffB_onlyB(1,latentZ_mat,j=3)>0,diffB_onlyB(1,latentZ_mat,j=3)) ,collapse = " / "))
   print(paste0(" data save : ", nrow(theta_df)))
   print(paste0(" bpBase : ", bpBase ))
+  print(paste0(" Init Beta : ",initial_beta))
+  print(paste0(" Init Pi : ", initial_pi ))
   print(paste0(" bp1 , bp3 : ", bp1 , "/", bp3 ))
-  print(paste0(" betaTot : ", betaTot )) 
+  # print(paste0(" betaTot : ", betaTot )) 
   print("#####################################################################################################################")
 }
 
 
 
+# generate_latentZ_mat = function(n) {
+#   if (n < 2) stop("n은 2 이상이어야 합니다.")
+#   
+#   # 첫 번째 열: 0.5에서 0.1로 선형 감소
+#   col1 = seq(10, 0.01, length.out = n)
+#   
+#   # 두 번째 열: 0.25에서 시작, 중간에서 0.9로 증가했다가 다시 0.25로 감소
+#   mid_point = ceiling(n / 2)  # 중간 지점
+#   col2_first_half = seq(1, 10, length.out = mid_point)
+#   col2_second_half = seq(10, 1, length.out = n - mid_point)
+#   col2 = c(col2_first_half, col2_second_half)
+#   
+#   # 세 번째 열: 1 - col1 - col2
+#   col3 = 10 - col1 - col2
+#   sumCol = abs(col1)+abs(col2)+abs(col3)
+#   col1 = abs(col1)/sumCol
+#   col2 = abs(col2)/sumCol
+#   col3 = abs(col3)/sumCol
+#   # 행렬 생성
+#   latentZ_mat = cbind(col1, col2, col3)
+#   
+#   # 유효성 검사: 각 행의 합이 1인지 확인
+#   if (!all(abs(rowSums(latentZ_mat) - 1) < 1e-10)) {
+#     stop("행렬의 각 행의 합이 1이 아닙니다.")
+#   }
+#   
+#   return(latentZ_mat)
+# }
 
 
 
 
+generate_latentZ_mat = function(n, lambda = 1, scale_output = TRUE) {
+  if (n < 2) stop("n은 2 이상이어야 합니다.")
+  
+  # col1: exp 함수로 감소
+  col1 = exp(-lambda * seq(0, 1, length.out = n))
+  
+  # col2: 중간 행의 값을 일정하게 유지
+  mid_index = ceiling(n / 2)
+  col2 = rep(col1[mid_index], n)
+  
+  # col3: col1의 역순
+  col3 = rev(col1)
+  
+  # 행렬 생성
+  latentZ_mat = cbind(col1, col2, col3)
+  
+  # scale로 각 행의 합을 1로 조정
+  if (scale_output) {
+    row_sums = rowSums(latentZ_mat)
+    latentZ_mat = latentZ_mat / row_sums
+  }
+  
+  return(latentZ_mat)
+}
 
 
 

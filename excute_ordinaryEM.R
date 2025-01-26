@@ -2,10 +2,10 @@ source("DAEM_BarrierMethod_function.R")
 
 
 # Reading Data
-file_name = 'Aarest_data.txt'
+# file_name = 'Aarest_data.txt'
+# file_name = 'RearDump.txt'
+file_name = 'SerumReversal.txt'
 # file_name = 'FRT_censord.txt'
-# file_name = 'Aarest_data_censored_rot4.txt'
-# file_name = 'Aarest_data_rightcensored.txt'
 fdata = read.table(file_name,header = T)
 
 # Data preprocessing
@@ -36,7 +36,7 @@ initial_pi = initial_pi_set / sum(initial_pi_set)
 # as.numeric(400/initial_beta[3])^(-initial_beta[3]))
 
 initial_lambda = initial_lambda_calc(time_vec,event_vec,
-beta_vec=initial_beta,censored1 =5,censored3 = 10)
+beta_vec=initial_beta,censored1 =5,censored3 = 30)
 
 length(unique(time_vec))
 
@@ -158,3 +158,4 @@ if(parameter_diff<1e-7){
 colnames(theta_df) <- column_names
 
 tail(theta_df,3)
+plot(theta_df$sumQfunc)
