@@ -216,9 +216,10 @@ q3 = theta_df_full %>% ggplot(aes(x=tempering,y=Q3))+geom_line(lty=2)+geom_point
   # annotate("text", x = appAnnealLimit, y = -21.6, label = appAnnealLimit, color = "red", hjust = 1.0,size=3)+
   theme_minimal()
 
+
 beta1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta1))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(B.1) Learning " * beta[1]),
+    title = expression("(B.1) Convergence of " * beta[1]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -227,7 +228,7 @@ beta1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta1))+geom_line(lty=2)+g
 
 beta3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta3))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(B.3) Learning " * beta[3]),
+    title = expression("(B.2) Convergence of " * beta[3]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -249,7 +250,7 @@ beta3_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta3))+geom_line(
 
 beta1_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta1))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(B.2) Derivative of " * beta[1]),
+    title = expression("(B.3) Derivative of " * beta[1]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -260,16 +261,6 @@ beta1_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta1))+geom_line(
   theme_minimal()
 
 
-# betaSum_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=abs(diffBeta1)+abs(diffBeta3) ))+geom_line(lty=2)+geom_point()+
-#   labs(
-#     title = expression("Absolute sum of derivatives of " * beta[1] ~ "and" ~ beta[3]),
-#     x = "Annealing parameter",
-#     y = ""
-#   ) +
-#   geom_hline(yintercept = 0)+
-#   scale_y_break(c(0.021, 1.95), space = 0.3 , scales="free") +
-#   geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-#   theme_minimal()
 
 Lambda1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda1))+geom_line(lty=2)+geom_point()+
   labs(
@@ -280,9 +271,19 @@ Lambda1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda1))+geom_line(lty=
   geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
   theme_minimal()
 
+Lambda2_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda2))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(C.2) Learning " * lambda[2]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  theme_minimal()
+
+
 Lambda3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda3))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(C.2) Learning " * lambda[3]),
+    title = expression("(C.3) Learning " * lambda[3]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -295,17 +296,16 @@ pi_gg = theta_df_full %>% ggplot(aes(x=tempering,y=pi3))+
   geom_line(aes(x=tempering,y=pi1),lty=3,size=1,color="black")+
   geom_line(aes(x=tempering,y=pi2),lty=4,size=1,color="black")+
   labs(
-    title = expression("(C.3) Learning " * pi["k"]),
+    title = expression("(C.4) Learning " * pi["k"]),
     x = "Annealing parameter",
     y = ""
   ) +
+  coord_cartesian(ylim=c(0.25,0.45))+
   geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  annotate("text", x = 0.9, y = 0.35, label = expression(pi[1]),size=5)+
-  annotate("text", x = 0.9, y = 0.41, label = expression(pi[2]),size=5)+
-  annotate("text", x = 0.9, y = 0.22, label = expression(pi[3]),size=5)+
+  annotate("text", x = 0.9, y = 0.32, label = expression(pi[1]),size=5)+
+  annotate("text", x = 0.9, y = 0.26, label = expression(pi[2]),size=5)+
+  annotate("text", x = 0.9, y = 0.4, label = expression(pi[3]),size=5)+
   theme_minimal()
-# pi_gg
-# 
 
 title_grob <- textGrob(
   "Aarest Data", 
@@ -315,7 +315,7 @@ title_grob <- textGrob(
 parameterPlot = grid.arrange(
   qa,q1,q2,q3,
   beta1_gg,beta1_ggDiff,beta3_gg,beta3_ggDiff,
-  Lambda1_gg,Lambda3_gg,pi_gg,
+  Lambda1_gg,Lambda2_gg,Lambda3_gg,pi_gg,
   ncol = 4,            # 열의 개수
   # heights = c(1, 1)     # 행 높이 비율
   top = title_grob

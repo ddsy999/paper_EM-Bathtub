@@ -15,7 +15,7 @@ time_vec = fdata[,1]%>% as.numeric()
 
 tot=1e-9
 maxEMIter=1e+5
-maxIterAnnealing = 1e+3
+maxIterAnnealing = 1e+2
 learningRateBp = 2
 initialbpBase = 1e+2
 # betaTot = 1e-4
@@ -70,22 +70,24 @@ for( ITerAnneal in 1:maxIterAnnealing){
       # if(abs(barrierFunc_1(new_beta1,latentZ_mat,bp1))<tot){break}
       # if(abs(barrierFunc_1(new_beta1,latentZ_mat,bp1))<betaTot){break}
       # if(abs(diffB_onlyB(new_beta1,latentZ_mat,j=1))<betaTot){break}
-      if(abs(diffB_onlyB(new_beta1,latentZ_mat,j=1))<tot){break}
+      # if(abs(diffB_onlyB(new_beta1,latentZ_mat,j=1))<tot){break}
       bp1=bp1*learningRateBp
       if(bp1>1e+8){break}
     }
+    # barrier_beta1
+    # barrierFunc_1
     bp3=bpBase
     for( i in 1:10000){
       new_beta3 = barrier_beta3(candi_before_vec[3],latentZ_mat,bp=bp3 )
       # if(abs(barrierFunc_3(new_beta3,latentZ_mat,bp3))<tot){break}
       # if(abs(barrierFunc_3(new_beta3,latentZ_mat,bp3))<betaTot){break}
       # if(abs(diffB_onlyB(new_beta3,latentZ_mat,j=3))<betaTot){break}
-      if(abs(diffB_onlyB(new_beta3,latentZ_mat,j=3))<tot){break}
+      # if(abs(diffB_onlyB(new_beta3,latentZ_mat,j=3))<tot){break}
       bp3=bp3*learningRateBp
       if(bp3>1e+8){break}
     }
-    
-    
+    # new_beta1 = barrier_beta1(candi_before_vec[1],latentZ_mat,bp=bp1 )
+    # new_beta3 = barrier_beta3(candi_before_vec[3],latentZ_mat,bp=bp3 )
     
     #### Update Parameter ####
     new_beta = c(new_beta1,1,new_beta3)
@@ -170,7 +172,7 @@ qa = theta_df_full %>% ggplot(aes(x=tempering,y=Qlike))+geom_line(lty=2)+geom_po
   ) +
   geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
   annotate("text", x = appAnnealLimit, y = -174, label = appAnnealLimit, color = "red",
-           hjust = -0.5,size=3)+
+           hjust = -0.05,size=3)+
   theme_minimal()
 
 q1 = theta_df_full %>% ggplot(aes(x=tempering,y=Q1))+geom_line(lty=2)+geom_point()+
@@ -205,7 +207,7 @@ q3 = theta_df_full %>% ggplot(aes(x=tempering,y=Q3))+geom_line(lty=2)+geom_point
 
 beta1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta1))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(B.1) Learning " * beta[1]),
+    title = expression("(B.1) Convergence of " * beta[1]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -214,7 +216,7 @@ beta1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta1))+geom_line(lty=2)+g
 
 beta3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta3))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(B.3) Learning " * beta[3]),
+    title = expression("(B.2) Convergence of " * beta[3]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -236,7 +238,7 @@ beta3_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta3))+geom_line(
 
 beta1_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta1))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(B.2) Derivative of " * beta[1]),
+    title = expression("(B.3) Derivative of " * beta[1]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -257,9 +259,19 @@ Lambda1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda1))+geom_line(lty=
   geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
   theme_minimal()
 
+Lambda2_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda2))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(C.2) Learning " * lambda[2]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  theme_minimal()
+
+
 Lambda3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda3))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(C.2) Learning " * lambda[3]),
+    title = expression("(C.3) Learning " * lambda[3]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -272,7 +284,7 @@ pi_gg = theta_df_full %>% ggplot(aes(x=tempering,y=pi3))+
   geom_line(aes(x=tempering,y=pi1),lty=3,size=1,color="black")+
   geom_line(aes(x=tempering,y=pi2),lty=4,size=1,color="black")+
   labs(
-    title = expression("(C.3) Learning " * pi["k"]),
+    title = expression("(C.4) Learning " * pi["k"]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -286,14 +298,14 @@ pi_gg = theta_df_full %>% ggplot(aes(x=tempering,y=pi3))+
 # 
 
 title_grob <- textGrob(
-  "FRT Data", 
+  "Failure of Device G", 
   gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
 )
 
 grid.arrange(
   qa,q1,q2,q3,
-  beta1_gg,beta1_ggDiff,beta3_gg,beta3_ggDiff,
-  Lambda1_gg,Lambda3_gg,pi_gg,
+  beta1_gg,beta3_gg,beta1_ggDiff,beta3_ggDiff,
+  Lambda1_gg,Lambda2_gg,Lambda3_gg,pi_gg,
   ncol = 4,            # 열의 개수
   # heights = c(1, 1)     # 행 높이 비율
   top = title_grob
