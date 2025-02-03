@@ -15,13 +15,13 @@ time_vec = fdata[,1]%>% as.numeric()
 
 tot=1e-9
 maxEMIter=1e+5
-maxIterAnnealing = 1e+2
+maxIterAnnealing = 200
 learningRateBp = 2
 initialbpBase = 1e-1
 # betaTot = 1e-4
 initalAnnealingPara = 0.6
 # annealingSchedule = seq(0.95,0.9999,length.out=maxIterAnnealing)
-annealingSchedule = seq(0.7,0.9999,length.out=maxIterAnnealing)
+annealingSchedule = seq(0.7,0.9999999,length.out=maxIterAnnealing)
 bpBaseSchedule = seq(initialbpBase,1e+4,length.out=maxIterAnnealing)
 betaTotSchedule = seq(20,1e-8,length.out=maxIterAnnealing)
 
@@ -176,8 +176,8 @@ plot(theta_df_full$beta1)
 plot(theta_df_full$beta3)
 
 
-theta_df_full %>% tail(35)
-appAnnealLimit = theta_df_full$tempering[min(which(theta_df_full$Qlike > -589.7))]
+theta_df_full %>% tail(10)
+appAnnealLimit = theta_df_full$tempering[min(which(theta_df_full$Qlike > -567))]
 theta_df_full %>% filter(tempering==appAnnealLimit)
 qa = theta_df_full %>% ggplot(aes(x=tempering,y=Qlike))+geom_line(lty=2)+geom_point()+
   labs(
@@ -220,9 +220,10 @@ q3 = theta_df_full %>% ggplot(aes(x=tempering,y=Q3))+geom_line(lty=2)+geom_point
   # annotate("text", x = appAnnealLimit, y = -21.6, label = appAnnealLimit, color = "red", hjust = 1.0,size=3)+
   theme_minimal()
 
+
 beta1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta1))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(B.1) Learning " * beta[1]),
+    title = expression("(B.1) Convergence of " * beta[1]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -231,7 +232,7 @@ beta1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta1))+geom_line(lty=2)+g
 
 beta3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta3))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(B.3) Learning " * beta[3]),
+    title = expression("(B.3) Convergence of " * beta[3]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -267,16 +268,26 @@ beta1_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta1))+geom_line(
 
 Lambda1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda1))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(C.1) Learning " * lambda[1]),
+    title = expression("(C.1) Convergence of " * lambda[1]),
     x = "Annealing parameter",
     y = ""
   ) +
   geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
   theme_minimal()
 
+Lambda2_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda2))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(C.2) Convergence of " * lambda[2]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  theme_minimal()
+
+
 Lambda3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda3))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(C.2) Learning " * lambda[3]),
+    title = expression("(C.3) Convergence of " * lambda[3]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -289,18 +300,17 @@ pi_gg = theta_df_full %>% ggplot(aes(x=tempering,y=pi3))+
   geom_line(aes(x=tempering,y=pi1),lty=3,size=1,color="black")+
   geom_line(aes(x=tempering,y=pi2),lty=4,size=1,color="black")+
   labs(
-    title = expression("(C.3) Learning " * pi["k"]),
+    title = expression("(C.4) Convergence of " * pi["k"]),
     x = "Annealing parameter",
     y = ""
   ) +
   # coord_cartesian(ylim=c(0.25,0.45))+
   geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  annotate("text", x = 0.95, y = 0.90, label = expression(pi[1]),size=5)+
-  annotate("text", x = 0.95, y = 0.05, label = expression(pi[2]),size=5)+
-  annotate("text", x = 0.95, y = 0.3, label = expression(pi[3]),size=5)+
+  annotate("text", x = 0.9, y = 0.32, label = expression(pi[1]),size=5)+
+  annotate("text", x = 0.9, y = 0.26, label = expression(pi[2]),size=5)+
+  annotate("text", x = 0.9, y = 0.4, label = expression(pi[3]),size=5)+
   theme_minimal()
-# pi_gg
-# 
+
 
 title_grob <- textGrob(
   paste0(unlist(strsplit(file_name, "\\."))[1]," Data"),
@@ -310,7 +320,7 @@ title_grob <- textGrob(
 grid.arrange(
   qa,q1,q2,q3,
   beta1_gg,beta1_ggDiff,beta3_gg,beta3_ggDiff,
-  Lambda1_gg,Lambda3_gg,pi_gg,
+  Lambda1_gg,Lambda2_gg,Lambda3_gg,pi_gg,
   ncol = 4,            # 열의 개수
   # heights = c(1, 1)     # 행 높이 비율
   top = title_grob

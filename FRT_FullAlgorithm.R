@@ -175,6 +175,7 @@ qa = theta_df_full %>% ggplot(aes(x=tempering,y=Qlike))+geom_line(lty=2)+geom_po
            hjust = -0.05,size=3)+
   theme_minimal()
 
+
 q1 = theta_df_full %>% ggplot(aes(x=tempering,y=Q1))+geom_line(lty=2)+geom_point()+
   labs(
     title = expression("(A.2) Likelihood "*Q[1]*"("* beta[1]*")"),
@@ -205,6 +206,7 @@ q3 = theta_df_full %>% ggplot(aes(x=tempering,y=Q3))+geom_line(lty=2)+geom_point
   # annotate("text", x = appAnnealLimit, y = -21.6, label = appAnnealLimit, color = "red", hjust = 1.0,size=3)+
   theme_minimal()
 
+
 beta1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta1))+geom_line(lty=2)+geom_point()+
   labs(
     title = expression("(B.1) Convergence of " * beta[1]),
@@ -216,7 +218,7 @@ beta1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta1))+geom_line(lty=2)+g
 
 beta3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta3))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(B.2) Convergence of " * beta[3]),
+    title = expression("(B.3) Convergence of " * beta[3]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -238,7 +240,7 @@ beta3_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta3))+geom_line(
 
 beta1_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta1))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(B.3) Derivative of " * beta[1]),
+    title = expression("(B.2) Derivative of " * beta[1]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -252,7 +254,7 @@ beta1_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta1))+geom_line(
 
 Lambda1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda1))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(C.1) Learning " * lambda[1]),
+    title = expression("(C.1) Convergence of " * lambda[1]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -261,7 +263,7 @@ Lambda1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda1))+geom_line(lty=
 
 Lambda2_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda2))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(C.2) Learning " * lambda[2]),
+    title = expression("(C.2) Convergence of " * lambda[2]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -271,7 +273,7 @@ Lambda2_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda2))+geom_line(lty=
 
 Lambda3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda3))+geom_line(lty=2)+geom_point()+
   labs(
-    title = expression("(C.3) Learning " * lambda[3]),
+    title = expression("(C.3) Convergence of " * lambda[3]),
     x = "Annealing parameter",
     y = ""
   ) +
@@ -284,18 +286,18 @@ pi_gg = theta_df_full %>% ggplot(aes(x=tempering,y=pi3))+
   geom_line(aes(x=tempering,y=pi1),lty=3,size=1,color="black")+
   geom_line(aes(x=tempering,y=pi2),lty=4,size=1,color="black")+
   labs(
-    title = expression("(C.4) Learning " * pi["k"]),
+    title = expression("(C.4) Convergence of " * pi["k"]),
     x = "Annealing parameter",
     y = ""
   ) +
-  coord_cartesian(ylim=c(0.25,0.45))+
+  # coord_cartesian(ylim=c(0.25,0.45))+
   geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
   annotate("text", x = 0.9, y = 0.32, label = expression(pi[1]),size=5)+
   annotate("text", x = 0.9, y = 0.26, label = expression(pi[2]),size=5)+
   annotate("text", x = 0.9, y = 0.4, label = expression(pi[3]),size=5)+
   theme_minimal()
-# pi_gg
-# 
+
+
 
 title_grob <- textGrob(
   "Failure of Device G", 
@@ -304,12 +306,14 @@ title_grob <- textGrob(
 
 grid.arrange(
   qa,q1,q2,q3,
-  beta1_gg,beta3_gg,beta1_ggDiff,beta3_ggDiff,
+  beta1_gg,beta1_ggDiff,beta3_gg,beta3_ggDiff,
   Lambda1_gg,Lambda2_gg,Lambda3_gg,pi_gg,
   ncol = 4,            # 열의 개수
   # heights = c(1, 1)     # 행 높이 비율
   top = title_grob
 )
+
+
 
 optimalData = theta_df_full %>% filter(tempering==appAnnealLimit) 
 optimalData %>% pull(beta1)
@@ -319,6 +323,9 @@ optBeta3 = optimalData %>% pull(beta3)
 optLambda1 = optimalData %>% pull(lambda1)
 optLambda2 = optimalData %>% pull(lambda2)
 optLambda3 = optimalData %>% pull(lambda3)
+optPi1 = optimalData %>% pull(pi1)
+optPi2 = optimalData %>% pull(pi2)
+optPi3 = optimalData %>% pull(pi3)
 
 time_DBlist = seq(min(time_vec),max(time_vec),by=0.01)
 DBbound1 = DecisionBoundary(time_DBlist,beta_vec = c(optimalData %>% pull(beta1),1,optimalData %>% pull(beta3)),lambda_vec = c(optimalData %>% pull(lambda1),optimalData %>% pull(lambda2),optimalData %>% pull(lambda3)),j=1)
@@ -344,7 +351,7 @@ DB3 = DBdata %>% ggplot(aes(x=time,y=postProbRatio3))+geom_line()+
     x = "",
     y = ""
   ) +
-  annotate("text", x = changePoint3-10, y = 5,label=paste0("Time :",changePoint3))+
+  annotate("text", x = changePoint3-10, y = 3,label=paste0("Time :",changePoint3))+
   geom_point(data = data.frame(x = c(changePoint3), y = c(1)), aes(x = x, y = y), color = "blue", size = 3)+
   theme_minimal()+geom_hline(yintercept = 1,lty=2)
 
@@ -356,21 +363,29 @@ hzData = data.frame(time = time_DBlist , hz1 = hazardrate(time_DBlist,optBeta1,o
 
 hzPlot = hzData %>% ggplot(aes(x=time , y=hz1))+geom_line(color="red")+
   geom_line(aes(x=time ,y=hz2),color="green3")+geom_line(aes(x=time ,y=hz3),color="blue")+
-  scale_y_break(c(0.3,1), space = 0.3 , scales="free") +
-  geom_vline(xintercept = 7.01)+
-  geom_vline(xintercept = 79.48)+
+  # scale_y_break(c(0.3,2), space = 0.3 , scales="free") +
+  geom_vline(xintercept = changePoint1,lty=2)+
+  geom_vline(xintercept = changePoint3,lty=2)+
   labs(
     title = "Hazard Rate",
     x = "",
     y = ""
   )+
-  annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
-  annotate("text", x = changePoint3-10, y = 1.3,label=paste0("Time :",changePoint3))+
+  annotate("text", x = changePoint1, y = 0.01,hjust=-0.2,label=paste0("Time :",changePoint1))+
+  annotate("text", x = changePoint3, y = 0.01,hjust=-0.3,label=paste0("Time :",changePoint3))+
   theme_minimal()
 
 DecisionPlot = posteriorPlot+hzPlot
 
+grid.arrange(
+  DB1,DB3,hzPlot,
+  ncol=3,
+  top = textGrob(
+    "Failure of Device G Decision Boundary", 
+    gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
+  )
+)
 
-parameterPlot
-DecisionPlot
+
+
 
