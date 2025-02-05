@@ -17,37 +17,20 @@ tot=1e-9
 maxEMIter=1e+5
 maxIterAnnealing = 1e+2
 learningRateBp = 2
-initialbpBase = 1e-1
+initialbpBase = 1e+2
 # betaTot = 1e-4
 initalAnnealingPara = 0.6
-# annealingSchedule = seq(0.95,0.9999,length.out=maxIterAnnealing)
-annealingSchedule = seq(0.7,0.9999,length.out=maxIterAnnealing)
+annealingSchedule = seq(0.66,0.9999,length.out=maxIterAnnealing)
 bpBaseSchedule = seq(initialbpBase,1e+4,length.out=maxIterAnnealing)
-betaTotSchedule = seq(20,1e-8,length.out=maxIterAnnealing)
+betaTotSchedule = seq(1e+1,1e-8,length.out=maxIterAnnealing)
+
 
 
 ## result 기록 
 result_latentZ_mat = list()
 theta_df_full = NULL
 theta_df = NULL
-## initial Parameter : beta , lambda , pi
-# initial_beta = c(0.5,1,2)
-# initial_beta = c(0.5,1,5)
-# initial_beta = c(0.5,1,25)
-# initial_beta = c(0.5,1,50)
-# initial_beta = c(0.1,1,5)
-# initial_beta = c(0.2,1,5)
-# initial_beta = c(0.5,1,5)
-# initial_beta = c(0.8,1,5)
 
-# initial_pi_set = c(1,1,1)
-# initial_pi_set = c(1,2,1)
-# initial_pi_set = c(1,5,1)
-# initial_pi_set = c(1,10,1)
-# initial_pi_set = c(1,1,1)
-# initial_pi_set = c(1,2,1)
-# initial_pi_set = c(1,5,1)
-# initial_pi_set = c(1,10,1)
 
 # 초기값 설정
 initial_beta_list <- list(
@@ -60,9 +43,6 @@ initial_beta_list <- list(
 )
 
 initial_pi_list <- list(
-  c(1, 1, 1),
-  c(1, 2, 1),
-  c(1, 10, 1),
   c(1, 1, 1),
   c(1, 2, 1),
   c(1, 10, 1)
@@ -123,9 +103,9 @@ for( ITerAnneal in 1:maxIterAnnealing){
       # if(abs(barrierFunc_1(new_beta1,latentZ_mat,bp1))<tot){break}
       # if(abs(barrierFunc_1(new_beta1,latentZ_mat,bp1))<betaTot){break}
       # if(abs(diffB_onlyB(new_beta1,latentZ_mat,j=1))<betaTot){break}
-      if(abs(diffB_onlyB(new_beta1,latentZ_mat,j=1))<tot){break}
+      # if(abs(diffB_onlyB(new_beta1,latentZ_mat,j=1))<tot){break}
       bp1=bp1*learningRateBp
-      if(bp1>1e+4){break}
+      if(bp1>1e+6){break}
     }
     bp3=bpBase
     for( i in 1:10000){
@@ -133,9 +113,9 @@ for( ITerAnneal in 1:maxIterAnnealing){
       # if(abs(barrierFunc_3(new_beta3,latentZ_mat,bp3))<tot){break}
       # if(abs(barrierFunc_3(new_beta3,latentZ_mat,bp3))<betaTot){break}
       # if(abs(diffB_onlyB(new_beta3,latentZ_mat,j=3))<betaTot){break}
-      if(abs(diffB_onlyB(new_beta3,latentZ_mat,j=3))<tot){break}
+      # if(abs(diffB_onlyB(new_beta3,latentZ_mat,j=3))<tot){break}
       bp3=bp3*learningRateBp
-      if(bp3>1e+4){break}
+      if(bp3>1e+6){break}
     }
     
     

@@ -177,7 +177,7 @@ plot(theta_df_full$beta3)
 
 
 theta_df_full %>% tail(10)
-appAnnealLimit = theta_df_full$tempering[min(which(theta_df_full$Qlike > -567))]
+appAnnealLimit = theta_df_full$tempering[min(which(theta_df_full$Qlike > -565))]
 theta_df_full %>% filter(tempering==appAnnealLimit)
 qa = theta_df_full %>% ggplot(aes(x=tempering,y=Qlike))+geom_line(lty=2)+geom_point()+
   labs(
@@ -306,9 +306,9 @@ pi_gg = theta_df_full %>% ggplot(aes(x=tempering,y=pi3))+
   ) +
   # coord_cartesian(ylim=c(0.25,0.45))+
   geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  annotate("text", x = 0.9, y = 0.32, label = expression(pi[1]),size=5)+
-  annotate("text", x = 0.9, y = 0.26, label = expression(pi[2]),size=5)+
-  annotate("text", x = 0.9, y = 0.4, label = expression(pi[3]),size=5)+
+  annotate("text", x = 0.9, y = 0.9, label = expression(pi[1]),size=5)+
+  annotate("text", x = 0.9, y = 0.4, label = expression(pi[2]),size=5)+
+  annotate("text", x = 0.9, y = 0.01, label = expression(pi[3]),size=5)+
   theme_minimal()
 
 
@@ -344,7 +344,7 @@ changePoint3 = time_DBlist[which.min(DBbound3<1)]
 DBdata = data.frame(time = time_DBlist, postProbRatio1 =DBbound1, postProbRatio3 =DBbound3 )
 DB1 = DBdata %>% ggplot(aes(x=time,y=postProbRatio1))+geom_line()+  theme_minimal()+
   geom_hline(yintercept = 1,lty=2)+
-  annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
+  annotate("text", x = changePoint1+100, y = 1e+10,label=paste0("Time :",changePoint1))+
   labs(
     title = "Posterior Ratio 1/2",
     x = "",
@@ -359,7 +359,7 @@ DB3 = DBdata %>% ggplot(aes(x=time,y=postProbRatio3))+geom_line()+
     x = "",
     y = ""
   ) +
-  annotate("text", x = changePoint3-10, y = 5,label=paste0("Time :",changePoint3))+
+  annotate("text", x = changePoint3-10, y = 1e+9,label=paste0("Time :",changePoint3))+
   geom_point(data = data.frame(x = c(changePoint3), y = c(1)), aes(x = x, y = y), color = "blue", size = 3)+
   theme_minimal()+geom_hline(yintercept = 1,lty=2)
 
@@ -371,35 +371,30 @@ hzData = data.frame(time = time_DBlist , hz1 = hazardrate(time_DBlist,optBeta1,o
 
 hzPlot = hzData %>% ggplot(aes(x=time , y=hz1))+geom_line(color="red")+
   geom_line(aes(x=time ,y=hz2),color="green3")+geom_line(aes(x=time ,y=hz3),color="blue")+
-  # scale_y_break(c(0.3,1), space = 0.3 , scales="free") +
-  # geom_vline(xintercept = 7.01)+
-  # geom_vline(xintercept = 79.48)+
+  # scale_y_break(c(0.3,2), space = 0.3 , scales="free") +
+  geom_vline(xintercept = changePoint1,lty=2)+
+  geom_vline(xintercept = changePoint3,lty=2)+
   labs(
     title = "Hazard Rate",
     x = "",
     y = ""
   )+
-  # annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
-  # annotate("text", x = changePoint3-10, y = 1.3,label=paste0("Time :",changePoint3))+
+  # coord_cartesian(ylim = c(0,0.3))+
+  annotate("text", x = changePoint1, y = 0.025,hjust=-0.2,label=paste0("Time :",changePoint1))+
+  annotate("text", x = changePoint3, y = 0.025,hjust=-0.2,label=paste0("Time :",changePoint3))+
   theme_minimal()
 
 DecisionPlot = posteriorPlot+hzPlot
 
-DecisionPlot
+grid.arrange(
+  DB1,DB3,hzPlot,
+  ncol=3,
+  top = textGrob(
+    "Serum Reversal Decision Boundary", 
+    gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
+  )
+)
 
-
-abs_diff_sum <- sapply(2:length(result_latentZ_mat), function(i) {
-  sum(abs(result_latentZ_mat[[i]] - result_latentZ_mat[[i-1]]))
-})
-
-data.frame(Annealing = annealingSchedule , latentDiff=c(abs_diff_sum[1],abs_diff_sum)) %>% 
-  ggplot(aes(x=Annealing,y=latentDiff))+geom_line()
-
-
-
-theta_df_full %>% mutate( inital_Beta = paste0(init_beta1 ,"_",init_beta2,"_",init_beta3)) %>% 
-  group_by(inital_Beta) %>%   filter(Qlike == max(Qlike)) %>%     # Qlike 최대값 필터링
-  slice(1) %>%     ungroup()   %>% as.data.frame()       
 
 
 
