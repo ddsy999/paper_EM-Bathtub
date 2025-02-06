@@ -7,6 +7,9 @@ library(ggbreak)
 library(cowplot)
 library(gridExtra)
 library(grid)
+library(scales)
+library(foreach)
+library(doParallel)
 
 if (!requireNamespace("rootSolve", quietly = TRUE)) {
   install.packages("rootSolve")

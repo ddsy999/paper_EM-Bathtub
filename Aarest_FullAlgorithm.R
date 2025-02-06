@@ -67,6 +67,8 @@ for( ITerAnneal in 1:maxIterAnnealing){
     bp1=bpBase
     for( i in 1:10000){
       new_beta1 = barrier_beta1(candi_before_vec[1],latentZ_mat,bp=bp1 )
+      # new_beta1 = barrier_beta1(candi_before_vec[1],latentZ_mat,bp=1e+8)
+      print(new_beta1)
       # if(abs(barrierFunc_1(new_beta1,latentZ_mat,bp1))<tot){break}
       # if(abs(barrierFunc_1(new_beta1,latentZ_mat,bp1))<betaTot){break}
       # if(abs(diffB_onlyB(new_beta1,latentZ_mat,j=1))<betaTot){break}
