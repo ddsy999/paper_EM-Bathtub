@@ -1,10 +1,10 @@
 source("DAEM_BarrierMethod_function.R")
-
+theta_df_full = NULL
 
 # Reading Data
 # file_name = 'Aarest_data.txt'
-# file_name = 'RearDump.txt'
-file_name = 'SerumReversal.txt'
+file_name = 'RearDump.txt'
+# file_name = 'SerumReversal.txt'
 # file_name = 'FRT_censord.txt'
 fdata = read.table(file_name,header = T)
 
@@ -15,7 +15,7 @@ event_vec = fdata[,2] %>% as.numeric()
 time_vec = fdata[,1]%>% as.numeric()
 # time_vec = time_vec/(max(time_vec)*1.1)
 tot=1e-8
-maxIter = 2000
+maxIter = 3000
 
 # 11개의 열을 가진 빈 result data.frame 생성
 column_names <- c("beta1", "lambda1", "beta2", "lambda2", "beta3", "lambda3", "sumQfunc","diffB_beta1","diffB_beta3","bp","iter","Beta1 at 1","Q1","Q2","Q3","pi1","pi2","pi3")
@@ -36,9 +36,9 @@ initial_pi = initial_pi_set / sum(initial_pi_set)
 # as.numeric(400/initial_beta[3])^(-initial_beta[3]))
 
 initial_lambda = initial_lambda_calc(time_vec,event_vec,
-beta_vec=initial_beta,censored1 =5,censored3 = 30)
+                                     initial_beta,censored1 = ceiling(N*0.1),censored3 = ceiling(N*0.9))
 
-length(unique(time_vec))
+
 
 beta_vec = initial_beta
 pi_vec = initial_pi
@@ -126,7 +126,7 @@ result_latentZ_mat[[iter]]=latentZ_mat
   
 #### Stopping rule ####
 alpha_temper = 1
-if(parameter_diff<1e-7){
+if(parameter_diff<1e-8){
   print("!!!!!!!!!!!!!!!!!!!! parameter diff Break !!!!!!!!!!!!!!!")
   theta_df_full = rbind(theta_df_full,
   data.frame(beta1=beta_vec[1],beta3=beta_vec[3],
@@ -159,3 +159,7 @@ colnames(theta_df) <- column_names
 
 tail(theta_df,3)
 plot(theta_df$sumQfunc)
+plot(theta_df$beta1)
+plot(theta_df$beta3)
+
+write.table(theta_df,"RearDump_OEM.txt",row.names = F)

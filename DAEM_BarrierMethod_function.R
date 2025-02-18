@@ -10,11 +10,8 @@ library(grid)
 library(scales)
 library(foreach)
 library(doParallel)
-
-if (!requireNamespace("rootSolve", quietly = TRUE)) {
-  install.packages("rootSolve")
-}
 library(rootSolve)
+
 
 
 ####### Denote function ####
@@ -65,6 +62,35 @@ DecisionBoundary = function(t,beta_vec,lambda_vec,j=1){
 }
 
 
+
+
+newton_raphson <- function(beta_init,lambda,latentZ_mat, j, tol = 1e-6, max_iter = 100) {
+  beta <- beta_init
+  for (i in 1:max_iter) {
+    # 함수값 f(beta)
+    f_beta <- Qfunc(beta ,lambda, latentZ_mat,j)
+    df_beta <- -diffB_onlyB(beta,latentZ_mat,j)
+    
+    print(df_beta)
+    # 뉴턴-랩슨 업데이트
+    beta_new <- beta - f_beta / df_beta
+    
+    print(f_beta / df_beta)
+    # 수렴 확인
+    if (abs(beta_new - beta) < tol) {
+      return(beta_new)
+    }
+    
+    beta <- beta_new
+  }
+  
+  warning("Maximum iterations reached without convergence")
+  return(beta)
+}
+
+
+
+
 Estep_result = function(beta,lambda,pi_vec,alpha=1){
   wpdf1=weibull_func(time_vec,beta[1],lambda[1])*pi_vec[1]
   wpdf2=weibull_func(time_vec,beta[2],lambda[2])*pi_vec[2]
@@ -78,6 +104,38 @@ Estep_result = function(beta,lambda,pi_vec,alpha=1){
              V3=wpdf3/sumWeibull)
 }
 
+# Estep_result2 = function(beta,lambda,pi_vec,alpha=1){
+#   wpdf1=weibull_func(time_vec,beta[1],lambda[1])*pi_vec[1]
+#   wpdf2=weibull_func(time_vec,beta[2],lambda[2])*pi_vec[2]
+#   # wpdf3=weibull_func(time_vec,beta[3],lambda[3])*pi_vec[3]
+#   wpdf1 = wpdf1^alpha
+#   wpdf2 = wpdf2^alpha
+#   # wpdf3 = wpdf3^alpha
+#   sumWeibull = wpdf1+wpdf2
+#   data.frame(V1=wpdf1/sumWeibull,
+#              V2=wpdf2/sumWeibull)
+#   # V3=wpdf3/sumWeibull)
+# }
+
+
+
+Estep_result2 = function(beta,lambda,pi_vec,alpha=1){
+  # unq_time_vec = unique(time_vec)  
+  # 각 값의 개수 계산
+  value_counts <- table(time_vec)
+  # 원본 벡터와 같은 순서로 각 값의 개수 적용
+  count_vec <-   as.numeric(sapply(time_vec, function(x) value_counts[as.character(x)]))
+  wpdf1=weibull_func(time_vec,beta[1],lambda[1])*pi_vec[1]
+  wpdf2=weibull_func(time_vec,beta[2],lambda[2])*pi_vec[2]
+  # wpdf3=weibull_func(time_vec,beta[3],lambda[3])*pi_vec[3]
+  wpdf1 = (wpdf1^alpha)/count_vec
+  wpdf2 = (wpdf2^alpha)/count_vec
+  # wpdf3 = wpdf3^alpha
+  sumWeibull = (wpdf1+wpdf2)
+  data.frame(V1=(wpdf1/sumWeibull),
+             V2=(wpdf2/sumWeibull)  )
+  # V3=wpdf3/sumWeibull)
+}
 
 barrierFunc_1 = function(beta,latentZ_mat,bp,barrierExist=1){
   result =  diffB_onlyB(beta, latentZ_mat, j=1)+barrierExist*(1/beta -1/(1-beta))*(1/bp)
@@ -115,8 +173,14 @@ barrier_beta3 = function(beta,latentZ_mat,bp){
   return(result$root)
 }
 
+# nobarrier_beta1 = function(beta,latentZ_mat,bp){
+#   result <- uniroot(function(beta) barrierFunc_1(beta,latentZ_mat,bp,barrierExist=0),
+#                     interval = c(0.000001,1),tol=1e-10)
+#   return(result$root)
+# }
+
 nobarrier_beta1 = function(beta,latentZ_mat,bp){
-  result <- uniroot(function(beta) barrierFunc_1(beta,latentZ_mat,bp,barrierExist=0),
+  result <- uniroot(function(beta) diffB_onlyB(beta, latentZ_mat, j=1),
                     interval = c(0,1),tol=1e-10)
   return(result$root)
 }
@@ -217,6 +281,40 @@ initial_lambda_calc = function(time_vec,event_vec,beta_vec,censored1,censored3){
 }
 
 
+initial_lambda_calc2 = function(time_vec,event_vec,beta_vec,censored1,censored3){
+  library(survival)
+  surv_obj <- Surv(time_vec, event_vec)
+  km_fit <- survfit(surv_obj ~ 1)
+  cum_hazard <- cumsum(km_fit$n.event / km_fit$n.risk)
+  hazard_rate <- diff(cum_hazard) / diff(km_fit$time)
+  # plot(hazard_rate)
+  
+  # censored1 = floor((length(time_vec))/10)+1
+  # censored3 = floor((length(time_vec))*0.6)
+  # censored1까지의 시간 벡터 및 위험률 추출
+  time_censored1 <-unique(time_vec)[1:censored1]
+  # beta_vec[1]을 사용하여 시간 벡터를 제곱
+  time_transformed1 <- beta_vec[1]*time_censored1^(beta_vec[1]-1)
+  # 위험률 벡터의 검열된 값 추출
+  hazard_censored1 <- hazard_rate[1:censored1]
+  # 선형 회귀 실행
+  lm_fit1 <- lm(hazard_censored1 ~ time_transformed1)
+  
+  # # censored3 시간 벡터 및 위험률 추출
+  # time_censored3 <-unique(time_vec)[censored1:length(cum_hazard)]
+  # time_transformed3 <- beta_vec[3]*time_censored3^(beta_vec[3]-1)
+  # # 위험률 벡터의 검열된 값 추출
+  # hazard_censored3 <- hazard_rate[censored1:length(cum_hazard)]
+  # # 선형 회귀 실행
+  # lm_fit3 <- lm(hazard_censored3 ~ time_transformed3)
+  
+  
+  
+  ## initial lambda
+  # lambda_vec = c(abs(lm_fit1$coefficients[2]),abs(mean(hazard_rate[censored1:censored3],na.rm=T)),abs(lm_fit3$coefficients[2]) )%>% as.vector()
+  lambda_vec = c(abs(lm_fit1$coefficients[2]),abs(mean(hazard_rate[censored1:censored3],na.rm=T)) )%>% as.vector()
+  return(lambda_vec)
+}
 
 
 
@@ -230,7 +328,7 @@ printResult = function(){
   print(paste0("Beta diff : " , diffB_onlyB(beta_vec[1],latentZ_mat,j=1) %>% abs+ diffB_onlyB(beta_vec[3],latentZ_mat,j=3) %>% abs))
   print(paste0(c("Beta1 at 1 is minus :",diffB_onlyB(1,latentZ_mat,j=1)<0,diffB_onlyB(1,latentZ_mat,j=1)) ,collapse = " / "))
   print(paste0(c("Beta1 at 3 is positive :",diffB_onlyB(1,latentZ_mat,j=3)>0,diffB_onlyB(1,latentZ_mat,j=3)) ,collapse = " / "))
-  print(paste0(" data save : ", nrow(theta_df)))
+  # print(paste0(" data save : ", nrow(theta_df)))
   print(paste0(" bpBase : ", bpBase ))
   print(paste0(" Init Beta : ",initial_beta))
   print(paste0(" Init Pi : ", initial_pi ))
@@ -239,7 +337,24 @@ printResult = function(){
   print("#####################################################################################################################")
 }
 
-
+printResult2 = function(){
+  print("#####################################################################################################################")
+  print( paste0( "EM iteration : " ,ITerAnneal ," / " , iter ))
+  print( paste0( "Annealing : " ,annealingPara))
+  print(paste0(c("pi_vec : " , sapply(pi_vec , function(i) round(i,2))),collapse = " / "))
+  print(paste0(c("Lambda : " , sapply(lambda_vec , function(i) round(i,4))),collapse = " / "))
+  print(paste0(c("Beta :",sapply(beta_vec , function(i) round(i,4))) ,collapse = " / "))
+  print(paste0("Beta diff : " , diffB_onlyB(beta_vec[1],latentZ_mat,j=1) %>% abs))
+  print(paste0(c("Beta1 at 1 is minus :",diffB_onlyB(1,latentZ_mat,j=1)<0,diffB_onlyB(1,latentZ_mat,j=1)) ,collapse = " / "))
+  # print(paste0(c("Beta1 at 3 is positive :",diffB_onlyB(1,latentZ_mat,j=3)>0,diffB_onlyB(1,latentZ_mat,j=3)) ,collapse = " / "))
+  # print(paste0(" data save : ", nrow(theta_df)))
+  print(paste0(" bpBase : ", bpBase ))
+  print(paste0(" Init Beta : ",initial_beta))
+  print(paste0(" Init Pi : ", initial_pi ))
+  # print(paste0(" bp1 , bp3 : ", bp1 , "/", bp3 ))
+  # print(paste0(" betaTot : ", betaTot )) 
+  print("#####################################################################################################################")
+}
 
 # generate_latentZ_mat = function(n) {
 #   if (n < 2) stop("n은 2 이상이어야 합니다.")

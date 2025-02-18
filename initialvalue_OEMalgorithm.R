@@ -38,9 +38,6 @@ initial_beta_list <- list(
 initial_pi_list <- list(
   c(1, 1, 1),
   c(1, 2, 1),
-  c(1, 10, 1),
-  c(1, 1, 1),
-  c(1, 2, 1),
   c(1, 10, 1)
 )
 

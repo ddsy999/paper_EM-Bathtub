@@ -40,7 +40,7 @@ pi_vec = initial_pi
 lambda_vec = initial_lambda
 ## initial latent variable 
 latentZ_mat = Estep_result(beta_vec,lambda_vec,pi_vec,alpha=1)
-alpha_temper = 0.8
+alpha_temper = 1
 
 diffB_onlyB(1,latentZ_mat ,j=1)
 
@@ -173,12 +173,15 @@ for( i in 1:length(result_latentZ_mat_1)){
 }
 
 result1 = cbind(theta_df_1,ratio1_Z1)
-result1 = result1[1:100,]
+# result1 = result1[1:100,]
 result1$iter =  as.numeric(result1$iter)
 result1$beta1 =  as.numeric(result1$beta1)
 R1=ggplot(result1,aes(x=iter,y=log(ratio1_Z1,10)))+geom_point()+geom_line()+
-  labs(y = expression(log[10](Z[11]/ Z[13])))
-R2=ggplot(result1,aes(x=iter,y=beta1))+geom_point()+geom_line()
+  labs(y = expression(log[10](Z[11]/ Z[13])),
+       x = "Iteration")+theme_minimal()
+R2=ggplot(result1,aes(x=iter,y=beta1))+geom_point()+
+  labs(y =expression(beta[1]),
+       x = "Iteration")+geom_line()+theme_minimal()
 
 
 result1_1 = bind_rows(result_latentZ_mat_1, .id = "iter")
@@ -186,18 +189,32 @@ result1_1$x <- rep(1:30, times = length(result_latentZ_mat_1))
 result1_1$iter = as.numeric(result1_1$iter)
 R3=ggplot(result1_1, aes(x = x, y = V1, group = iter, color = iter)) +
   geom_line(alpha = 0.3) +  # 선의 투명도 조절
-  scale_color_gradient(low = "gray", high = "red") +  # 🔥 그룹 숫자 작을 때 회색, 클 때 빨간색
+  scale_color_gradient(low = "grey", high = "red") +  # 🔥 그룹 숫자 작을 때 회색, 클 때 빨간색
   theme_minimal() +
+  geom_hline(yintercept = 1e-5,lty=2)+
   theme(legend.position = "none") +  # legend 삭제
-  labs(title = "Iteration 별 책임도값",
-       x = "Index (1~30)",
-       y = "Z1")+
-  theme(legend.position = "none")
+  labs(title = expression("Latent variable "*Z[i1]),
+       x = "Index i= 1~30 ",
+       y = expression(Z[i1]))+
+  scale_color_gradient(
+    low = "grey", high = "red",  # 그룹 숫자 작을 때 회색, 클 때 빨간색
+    name = "Iteration"  # 🔥 Legend 제목 추가
+  ) +
+  annotate(
+    "text", 
+    x = 25, y = 0.02, # 특정 좌표 지정
+    label = 1.8e-05, # 텍스트 내용
+    size = 4, # 텍스트 크기
+    color = "black", # 텍스트 색상
+    # fontface = "bold" # 텍스트 스타일
+  )+
+  theme(legend.position = "right")
 
-A10=(R1/R2|R3)+plot_annotation(title = "Annealing 1", 
+A10=(R1/R2|R3)+plot_annotation(title = expression("Annealing parameter " * gamma == 1), 
                            theme = theme(plot.title = element_text(hjust = 0.5, size = 16)))
 
 
+A10
 
 ratio08_Z1 = numeric()
 for( i in 1:length(result_latentZ_mat_08)){
@@ -208,10 +225,12 @@ for( i in 1:length(result_latentZ_mat_08)){
 result08 = cbind(theta_df_08,ratio08_Z1)
 result08$iter =  as.numeric(result08$iter)
 result08$beta1 =  as.numeric(result08$beta1)
-result08 = result08[1:60,]
+result08 = result08
 R1=ggplot(result08,aes(x=iter,y=log(ratio08_Z1,10)))+geom_point()+geom_line()+
-  labs(y = expression(log[10](Z[11]/ Z[13])))
-R2=ggplot(result08,aes(x=iter,y=beta1))+geom_point()+geom_line()
+  labs(y = expression(log[10](Z[11]/ Z[13])))+theme_minimal()
+R2=ggplot(result08,aes(x=iter,y=beta1))+geom_point()+
+  labs(y =expression(beta[1]),
+       x = "Iteration")+geom_line()+theme_minimal()
 
 
 result08_1 = bind_rows(result_latentZ_mat_08, .id = "iter")
@@ -219,16 +238,34 @@ result08_1$x <- rep(1:30, times = length(result_latentZ_mat_08))
 result08_1$iter = as.numeric(result08_1$iter)
 R3=ggplot(result08_1, aes(x = x, y = V1, group = iter, color = iter)) +
   geom_line(alpha = 0.3) +  # 선의 투명도 조절
-  scale_color_gradient(low = "gray", high = "red") +  # 🔥 그룹 숫자 작을 때 회색, 클 때 빨간색
+  scale_color_gradient(low = "grey", high = "red") +  # 🔥 그룹 숫자 작을 때 회색, 클 때 빨간색
   theme_minimal() +
+  geom_hline(yintercept = 0.127,lty=2)+
   theme(legend.position = "none") +  # legend 삭제
-  labs(title = "Iteration 별 책임도값",
-       x = "Index (1~30)",
-       y = "Z1")+
-  theme(legend.position = "none")
+  labs(title = expression("Latent variable "*Z[i1]),
+       x = "Index i= 1~30 ",
+       y = expression(Z[i1]))+
+  scale_color_gradient(
+    low = "grey", high = "red",  # 그룹 숫자 작을 때 회색, 클 때 빨간색
+    name = "Iteration"  # 🔥 Legend 제목 추가
+  ) +
+  annotate(
+    "text", 
+    x = 25, y = 0.11, # 특정 좌표 지정
+    label = 0.127, # 텍스트 내용
+    size = 4, # 텍스트 크기
+    color = "black", # 텍스트 색상
+    # fontface = "bold" # 텍스트 스타일
+  )+
+  theme(legend.position = "right")
 
-A08=(R1/R2|R3)+plot_annotation(title = "Annealing 0.8", 
+A08=(R1/R2|R3)+plot_annotation(title = expression("Annealing parameter " * gamma == 0.8), 
                            theme = theme(plot.title = element_text(hjust = 0.5, size = 16)))
 
+A10
+A08
 
 A10/A08
+
+
+result08_1 %>% tail

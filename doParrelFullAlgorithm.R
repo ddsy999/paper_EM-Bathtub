@@ -1,10 +1,11 @@
 source("DAEM_BarrierMethod_function.R")
 
 # Reading Data
-file_name = 'Aarest_data.txt'
-# file_name = 'RearDump.txt'
-# file_name = 'SerumReversal.txt'
+# file_name = 'Aarest_data.txt'
 # file_name = 'FRT_censord.txt'
+file_name = 'RearDump.txt'
+# file_name = 'SerumReversal.txt'
+
 fdata = read.table(file_name,header = T)
 
 # Data preprocessing
@@ -15,12 +16,14 @@ time_vec = as.numeric(fdata[,1])
 
 tot=1e-9
 maxEMIter=1e+5
-maxIterAnnealing = 1e+2
+maxIterAnnealing = 100
 learningRateBp = 2
 
-annealingSchedule = seq(0.66,0.9999,length.out=maxIterAnnealing)
-bpBaseSchedule = seq(1e+2,1e+4,length.out=maxIterAnnealing)
-
+annealingSchedule = seq(0.6,0.999999999,length.out=maxIterAnnealing) 
+# annealingSchedule = 1 - exp(seq(log(1 - 0.7), log(1 - 0.99999), length.out = maxIterAnnealing))
+# annealingSchedule = seq(0.7,0.99999999,length.out=maxIterAnnealing) # FRT
+bpBaseSchedule = seq(1e+1,1e+6,length.out=maxIterAnnealing)
+# bpBaseSchedule = exp(seq(log(1e+3), log(1e+10), length.out = maxIterAnnealing))
 ## result 기록 
 theta_df_full = NULL
 
@@ -29,7 +32,10 @@ initial_beta = c(0.5,1,2)
 initial_pi_set = c(1,1,1)
 initial_pi = initial_pi_set / sum(initial_pi_set)
 initial_lambda = initial_lambda_calc(time_vec,event_vec,
-                                     initial_beta,censored1 = ceiling(N*0.2),censored3 = ceiling(N*0.8))
+                                     initial_beta,censored1 = ceiling(N*0.1),censored3 = ceiling(N*0.9))
+
+# initial_lambda = initial_lambda_calc(time_vec,event_vec,
+#                                      initial_beta,censored1 = ceiling(N*0.1),censored3 = ceiling(N*0.9))
 ## setting parameter
 beta_vec = initial_beta
 pi_vec = initial_pi
@@ -38,7 +44,8 @@ latentZ_mat = Estep_result(beta_vec,lambda_vec,pi_vec,alpha=1)
 
 
 
-numCores <- floor(detectCores()/2)
+# numCores <- floor(detectCores()/2)
+numCores = 2
 cl <- makeCluster(numCores)  
 registerDoParallel(cl)  
 
@@ -59,10 +66,14 @@ theta_df_full =  foreach(ITerAnneal = 1:maxIterAnnealing, .combine = rbind, .pac
     candi_before_vec = beta_vec
     candi_lambda_vec = lambda_vec
     
-
-    new_beta1 = barrier_beta1(candi_before_vec[1],latentZ_mat,bp=bpBase)
-    new_beta3 = barrier_beta3(candi_before_vec[3],latentZ_mat,bp=bpBase )
+    bp1 = bpBase
+    bp3 = bpBase
     
+    new_beta1 = barrier_beta1(candi_before_vec[1],latentZ_mat,bp=bpBase)
+    new_beta3 = barrier_beta3(candi_before_vec[3],latentZ_mat,bp=bpBase)
+    
+    # new_beta1 = barrier_beta1(candi_before_vec[1],latentZ_mat,bp=1e+8)
+    # new_beta3 = barrier_beta3(candi_before_vec[3],latentZ_mat,bp=1e+8)
     
     #### Update Parameter ####
     new_beta = c(new_beta1,1,new_beta3)
@@ -115,8 +126,7 @@ stopCluster(cl)
 
 
 
-
-
+# theta_df_full$beta3
 theta_df_full = theta_df_full %>% mutate(across(-1, as.numeric))
 
 plot(theta_df_full$Qlike)
@@ -125,11 +135,12 @@ plot(theta_df_full$Qlike)
 plot(theta_df_full$beta1)
 plot(theta_df_full$beta3)
 plot(theta_df_full$diffBeta1)
+plot(theta_df_full$diffBeta3)
 plot(theta_df_full$bpBase)
 
+theta_df_full %>% tail
 
-
-appAnnealLimit = theta_df_full$tempering[max(which(theta_df_full$Qlike < -225))]
+appAnnealLimit = theta_df_full$tempering[max(which(theta_df_full$Qlike < -175))]
 optimalData = theta_df_full %>% filter(tempering==appAnnealLimit)
 OptPi1 = optimalData$pi1
 OptPi2 = optimalData$pi2
@@ -147,8 +158,8 @@ qa = theta_df_full %>% ggplot(aes(x=tempering,y=Qlike))+geom_line(lty=2)+geom_po
   ) +
   geom_point(aes(x=appAnnealLimit,y=OptLike),color="red",size=3)+
   geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  annotate("text", x = appAnnealLimit, y = -245, label = appAnnealLimit, color = "red", 
-           hjust = -0.1,size=3)+
+  # annotate("text", x = appAnnealLimit, y = -245, label = appAnnealLimit, color = "red", 
+  #          hjust = -0.1,size=3)+
   theme_minimal()
 
 
@@ -305,4 +316,5 @@ grid.arrange(
 )
 
 
+write.table(theta_df_full,paste0(paste0(unlist(strsplit(file_name, "\\."))[1]),"_DAEM.txt"),row.names = F)
 
