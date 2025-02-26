@@ -91,52 +91,49 @@ newton_raphson <- function(beta_init,lambda,latentZ_mat, j, tol = 1e-6, max_iter
 
 
 
+Estep_result = function(beta,lambda,pi_vec,alpha=1){
+
+  wpdf1=weibull_func(time_vec,beta[1],lambda[1])*pi_vec[1]
+  wpdf2=weibull_func(time_vec,beta[2],lambda[2])*pi_vec[2]
+  wpdf3=weibull_func(time_vec,beta[3],lambda[3])*pi_vec[3]
+  wpdf1 = wpdf1^alpha
+  wpdf2 = wpdf2^alpha
+  wpdf3 = wpdf3^alpha
+  sumWeibull = wpdf1+wpdf2+wpdf3
+
+  data.frame(V1=wpdf1/sumWeibull,
+             V2=wpdf2/sumWeibull,
+             V3=wpdf3/sumWeibull)
+}
+
 # Estep_result = function(beta,lambda,pi_vec,alpha=1){
 #   # 각 값의 개수 계산
-#   # value_counts <- table(time_vec)
+#   value_counts <-as.vector(table(time_vec))
 #   # # 원본 벡터와 같은 순서로 각 값의 개수 적용
-#   # count_vec <-   as.numeric(sapply(time_vec, function(x) value_counts[as.character(x)]))
-#   wpdf1=weibull_func(time_vec,beta[1],lambda[1])*pi_vec[1]
-#   wpdf2=weibull_func(time_vec,beta[2],lambda[2])*pi_vec[2]
-#   wpdf3=weibull_func(time_vec,beta[3],lambda[3])*pi_vec[3]
+# 
+#   # beta = beta_vec
+#   # lambda = lambda_vec
+#   # alpha=1
+#   wpdf1=(weibull_func(unique(time_vec),beta[1],lambda[1])*pi_vec[1])^value_counts
+#   wpdf2=(weibull_func(unique(time_vec),beta[2],lambda[2])*pi_vec[2])^value_counts
+#   wpdf3=(weibull_func(unique(time_vec),beta[3],lambda[3])*pi_vec[3])^value_counts
 #   wpdf1 = wpdf1^alpha
 #   wpdf2 = wpdf2^alpha
 #   wpdf3 = wpdf3^alpha
 #   sumWeibull = wpdf1+wpdf2+wpdf3
 #   
-#   data.frame(V1=wpdf1/sumWeibull,
-#              V2=wpdf2/sumWeibull,
-#              V3=wpdf3/sumWeibull)
+# 
+#   # 사후확률 계산 (고유한 시간 값 기준)
+#   posterior_df = data.frame(
+#     V1 = wpdf1 / sumWeibull,
+#     V2 = wpdf2 / sumWeibull,
+#     V3 = wpdf3 / sumWeibull
+#   )
+#   
+#   # 중복된 시간값만큼 행을 반복하여 확장 (각 행을 value_counts 만큼 반복)
+#   expanded_df <- posterior_df[rep(1:nrow(posterior_df), times = value_counts), ]
+#   
 # }
-
-Estep_result = function(beta,lambda,pi_vec,alpha=1){
-  # 각 값의 개수 계산
-  value_counts <-as.vector(table(time_vec))
-  # # 원본 벡터와 같은 순서로 각 값의 개수 적용
-
-  beta = beta_vec
-  lambda = lambda_vec
-  alpha=1
-  wpdf1=(weibull_func(unique(time_vec),beta[1],lambda[1])*pi_vec[1])^value_counts
-  wpdf2=(weibull_func(unique(time_vec),beta[2],lambda[2])*pi_vec[2])^value_counts
-  wpdf3=(weibull_func(unique(time_vec),beta[3],lambda[3])*pi_vec[3])^value_counts
-  wpdf1 = wpdf1^alpha
-  wpdf2 = wpdf2^alpha
-  wpdf3 = wpdf3^alpha
-  sumWeibull = wpdf1+wpdf2+wpdf3
-  
-
-  # 사후확률 계산 (고유한 시간 값 기준)
-  posterior_df = data.frame(
-    V1 = wpdf1 / sumWeibull,
-    V2 = wpdf2 / sumWeibull,
-    V3 = wpdf3 / sumWeibull
-  )
-  
-  # 중복된 시간값만큼 행을 반복하여 확장 (각 행을 value_counts 만큼 반복)
-  expanded_df <- posterior_df[rep(1:nrow(posterior_df), times = value_counts), ]
-  
-}
 
 # Estep_result2 = function(beta,lambda,pi_vec,alpha=1){
 #   wpdf1=weibull_func(time_vec,beta[1],lambda[1])*pi_vec[1]
