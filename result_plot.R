@@ -1,45 +1,233 @@
-colnames(theta_df) <- column_names
 
-# theta_df
-p1=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=sumQfunc %>% as.numeric()))+geom_point()+geom_line()+ggtitle("sumQfunc")
-p2=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=beta1 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("Beta1")
-p3=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=beta3 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("Beta3")
+roadResult = read.table("Proposed_Result_RearDump.txt")
 
-p4=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=diffB_beta1 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("diffB_beta1")
-p5=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=diffB_beta3 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("diffB_beta3")
-
-p6=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=Q1 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("Q1")
-p7=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=Q2 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("Q2")
-p8=theta_df %>% ggplot(aes(x=iter%>% as.numeric(),y=Q3 %>% as.numeric()))+geom_point()+geom_line()+ggtitle("Q3")
-# 두 개의 그림을 결합하여 하나로 표시
-combined_plot <- (p1+p2+p3)/(p4+p5)/(p6+p7+p8)
-
-# 결합된 그림을 출력
-print(combined_plot)
+roadResult %>% ggplot(aes())
 
 
 
-initial_latent_varialbe = result_latentZ_mat[[1]]
-middle_latent_varialbe = result_latentZ_mat[[floor(length(result_latentZ_mat)/2)]]
-final_latent_varialbe = result_latentZ_mat[[length(result_latentZ_mat)]]
 
-colnames(initial_latent_varialbe)=c("Z1","Z2","Z3")
-colnames(middle_latent_varialbe)=c("Z1","Z2","Z3")
-colnames(final_latent_varialbe)=c("Z1","Z2","Z3")
-
-ggplot(middle_latent_varialbe,aes(x=time_vec,y=Z1),color="black")+geom_line()+
-geom_line(data=middle_latent_varialbe,aes(x=time_vec,y=Z3),color="black")+
-geom_line(data=final_latent_varialbe,aes(x=time_vec,y=Z1),color="red")+
-geom_line(data=final_latent_varialbe,aes(x=time_vec,y=Z3),color="red")
-
-
-z1 = ggplot(middle_latent_varialbe,aes(x=time_vec,y=Z1),color="black")+
-geom_line()+geom_line(data=final_latent_varialbe,aes(x=time_vec,y=Z1),color="red")
-z2 = ggplot(middle_latent_varialbe,aes(x=time_vec,y=Z3),color="black")+
-geom_line()+geom_line(data=final_latent_varialbe,aes(x=time_vec,y=Z3),color="red")
-
-print(z1+z2)
+appAnnealLimit = theta_df_full$tempering[min(which(theta_df_full$Qlike > -164))]
+theta_df_full %>% filter(tempering==appAnnealLimit)
+qa = theta_df_full %>% ggplot(aes(x=tempering,y=Qlike))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(A.1) Likelihood Q("* beta*")"),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  annotate("text", x = appAnnealLimit, y = -174, label = appAnnealLimit, color = "red",
+           hjust = -0.05,size=3)+
+  theme_minimal()
 
 
+q1 = theta_df_full %>% ggplot(aes(x=tempering,y=Q1))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(A.2) Likelihood "*Q[1]*"("* beta[1]*")"),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  # annotate("text", x = appAnnealLimit, y = -100, label = appAnnealLimit, color = "red", hjust = 1.0,size=3)+
+  theme_minimal()
+
+q2 = theta_df_full %>% ggplot(aes(x=tempering,y=Q2))+geom_line(lty=2)+geom_point()+
+  labs(
+    title =expression("(A.3) Likelihood "*Q[2]*"("* beta[2]*")"),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  # annotate("text", x = appAnnealLimit, y = -146, label = appAnnealLimit, color = "red", hjust = 1.0,size=3)+
+  theme_minimal()
+
+q3 = theta_df_full %>% ggplot(aes(x=tempering,y=Q3))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(A.4) Likelihood "*Q[3]*"("* beta[3]*")"),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  # annotate("text", x = appAnnealLimit, y = -21.6, label = appAnnealLimit, color = "red", hjust = 1.0,size=3)+
+  theme_minimal()
+
+
+beta1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta1))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(B.1) Convergence of " * beta[1]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  theme_minimal()
+
+beta3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta3))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(B.3) Convergence of " * beta[3]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  theme_minimal()
+
+
+beta3_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta3))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(B.4) Derivative of " * beta[3]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  # geom_hline(yintercept = 0)+
+  # coord_cartesian(ylim=c(-1e-5,0))+
+  # scale_y_break(c(-1e-4, -1e-6), space = 0.3 , scales="free") +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  theme_minimal()
+
+beta1_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta1))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(B.2) Derivative of " * beta[1]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  # scale_y_break(c(1e-4, 0.015), space = 0.3 , scales="free") +
+  # coord_cartesian(ylim=c(0,1e-4))+
+  # geom_hline(yintercept = 0)+
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  theme_minimal()
+
+
+
+Lambda1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda1))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(C.1) Convergence of " * lambda[1]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  theme_minimal()
+
+Lambda2_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda2))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(C.2) Convergence of " * lambda[2]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  theme_minimal()
+
+
+Lambda3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda3))+geom_line(lty=2)+geom_point()+
+  labs(
+    title = expression("(C.3) Convergence of " * lambda[3]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  theme_minimal()
+
+
+pi_gg = theta_df_full %>% ggplot(aes(x=tempering,y=pi3))+
+  geom_line(lty=2,size=1,color="black")+
+  geom_line(aes(x=tempering,y=pi1),lty=3,size=1,color="black")+
+  geom_line(aes(x=tempering,y=pi2),lty=4,size=1,color="black")+
+  labs(
+    title = expression("(C.4) Convergence of " * pi["k"]),
+    x = "Annealing parameter",
+    y = ""
+  ) +
+  # coord_cartesian(ylim=c(0.25,0.45))+
+  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
+  annotate("text", x = 0.9, y = 0.32, label = expression(pi[1]),size=5)+
+  annotate("text", x = 0.9, y = 0.26, label = expression(pi[2]),size=5)+
+  annotate("text", x = 0.9, y = 0.4, label = expression(pi[3]),size=5)+
+  theme_minimal()
+
+
+
+title_grob <- textGrob(
+  "Failure of Device G", 
+  gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
+)
+
+grid.arrange(
+  qa,q1,q2,q3,
+  beta1_gg,beta1_ggDiff,beta3_gg,beta3_ggDiff,
+  Lambda1_gg,Lambda2_gg,Lambda3_gg,pi_gg,
+  ncol = 4,            # 열의 개수
+  # heights = c(1, 1)     # 행 높이 비율
+  top = title_grob
+)
+
+
+
+optimalData = theta_df_full %>% filter(tempering==appAnnealLimit) 
+optimalData %>% pull(beta1)
+optBeta1 = optimalData %>% pull(beta1)
+optBeta2 = 1
+optBeta3 = optimalData %>% pull(beta3)
+optLambda1 = optimalData %>% pull(lambda1)
+optLambda2 = optimalData %>% pull(lambda2)
+optLambda3 = optimalData %>% pull(lambda3)
+optPi1 = optimalData %>% pull(pi1)
+optPi2 = optimalData %>% pull(pi2)
+optPi3 = optimalData %>% pull(pi3)
+
+time_DBlist = seq(min(time_vec),max(time_vec),by=0.01)
+DBbound1 = DecisionBoundary(time_DBlist,beta_vec = c(optimalData %>% pull(beta1),1,optimalData %>% pull(beta3)),lambda_vec = c(optimalData %>% pull(lambda1),optimalData %>% pull(lambda2),optimalData %>% pull(lambda3)),j=1)
+DBbound3 = DecisionBoundary(time_DBlist,beta_vec = c(optimalData %>% pull(beta1),1,optimalData %>% pull(beta3)),lambda_vec = c(optimalData %>% pull(lambda1),optimalData %>% pull(lambda2),optimalData %>% pull(lambda3)),j=3)
+
+changePoint1 = time_DBlist[which.min(DBbound1>1)]
+changePoint3 = time_DBlist[which.min(DBbound3<1)]
+DBdata = data.frame(time = time_DBlist, postProbRatio1 =DBbound1, postProbRatio3 =DBbound3 )
+DB1 = DBdata %>% ggplot(aes(x=time,y=postProbRatio1))+geom_line()+  theme_minimal()+
+  geom_hline(yintercept = 1,lty=2)+
+  annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
+  labs(
+    title = "Posterior Ratio 1/2",
+    x = "",
+    y = ""
+  )+ scale_y_continuous(
+    breaks = c(1,seq(2, 7, by = 5)) # y축 눈금을 5 단위로 설정
+  )+
+  geom_point(data = data.frame(x = c(changePoint1), y = c(1)), aes(x = x, y = y), color = "blue", size = 3)
+DB3 = DBdata %>% ggplot(aes(x=time,y=postProbRatio3))+geom_line()+ 
+  labs(
+    title = "Posterior Ratio 3/2",
+    x = "",
+    y = ""
+  ) +
+  annotate("text", x = changePoint3-10, y = 3,label=paste0("Time :",changePoint3))+
+  geom_point(data = data.frame(x = c(changePoint3), y = c(1)), aes(x = x, y = y), color = "blue", size = 3)+
+  theme_minimal()+geom_hline(yintercept = 1,lty=2)
+
+posteriorPlot = DB1+DB3
+
+hzData = data.frame(time = time_DBlist , hz1 = hazardrate(time_DBlist,optBeta1,optLambda1),
+                    hz2 = hazardrate(time_DBlist,optBeta2,optLambda2),
+                    hz3 = hazardrate(time_DBlist,optBeta3,optLambda3))
+
+hzPlot = hzData %>% ggplot(aes(x=time , y=hz1))+geom_line(color="red")+
+  geom_line(aes(x=time ,y=hz2),color="green3")+geom_line(aes(x=time ,y=hz3),color="blue")+
+  # scale_y_break(c(0.3,2), space = 0.3 , scales="free") +
+  geom_vline(xintercept = changePoint1,lty=2)+
+  geom_vline(xintercept = changePoint3,lty=2)+
+  labs(
+    title = "Hazard Rate",
+    x = "",
+    y = ""
+  )+
+  annotate("text", x = changePoint1, y = 0.01,hjust=-0.2,label=paste0("Time :",changePoint1))+
+  annotate("text", x = changePoint3, y = 0.01,hjust=-0.3,label=paste0("Time :",changePoint3))+
+  theme_minimal()
+
+DecisionPlot = posteriorPlot+hzPlot
+
+grid.arrange(
+  DB1,DB3,hzPlot,
+  ncol=3,
+  top = textGrob(
+    "Failure of Device G Decision Boundary", 
+    gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
+  )
+)
 
 

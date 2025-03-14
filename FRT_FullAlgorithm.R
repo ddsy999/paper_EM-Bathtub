@@ -20,7 +20,7 @@ learningRateBp = 2
 initialbpBase = 1e+2
 # betaTot = 1e-4
 initalAnnealingPara = 0.6
-annealingSchedule = seq(0.66,0.9999,length.out=maxIterAnnealing)
+annealingSchedule = seq(0.66,0.99999,length.out=maxIterAnnealing)
 bpBaseSchedule = seq(initialbpBase,1e+4,length.out=maxIterAnnealing)
 betaTotSchedule = seq(1e+1,1e-8,length.out=maxIterAnnealing)
 
