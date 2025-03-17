@@ -1,166 +1,71 @@
 
-roadResult = read.table("Proposed_Result_RearDump.txt")
+# roadResult = read.table("Proposed_Result_RearDump.txt")
+# roadResult = read.table("Proposed_Result_FRT_censord.txt")
+roadResult = read.table("Proposed_Result_Aarest_data.txt")
+# roadResult = read.table("Proposed_Result_SerumReversal.txt")
 
-roadResult %>% ggplot(aes())
-
-
-
-
-appAnnealLimit = theta_df_full$tempering[min(which(theta_df_full$Qlike > -164))]
-theta_df_full %>% filter(tempering==appAnnealLimit)
-qa = theta_df_full %>% ggplot(aes(x=tempering,y=Qlike))+geom_line(lty=2)+geom_point()+
-  labs(
-    title = expression("(A.1) Likelihood Q("* beta*")"),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  annotate("text", x = appAnnealLimit, y = -174, label = appAnnealLimit, color = "red",
-           hjust = -0.05,size=3)+
-  theme_minimal()
-
-
-q1 = theta_df_full %>% ggplot(aes(x=tempering,y=Q1))+geom_line(lty=2)+geom_point()+
-  labs(
-    title = expression("(A.2) Likelihood "*Q[1]*"("* beta[1]*")"),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  # annotate("text", x = appAnnealLimit, y = -100, label = appAnnealLimit, color = "red", hjust = 1.0,size=3)+
-  theme_minimal()
-
-q2 = theta_df_full %>% ggplot(aes(x=tempering,y=Q2))+geom_line(lty=2)+geom_point()+
-  labs(
-    title =expression("(A.3) Likelihood "*Q[2]*"("* beta[2]*")"),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  # annotate("text", x = appAnnealLimit, y = -146, label = appAnnealLimit, color = "red", hjust = 1.0,size=3)+
-  theme_minimal()
-
-q3 = theta_df_full %>% ggplot(aes(x=tempering,y=Q3))+geom_line(lty=2)+geom_point()+
-  labs(
-    title = expression("(A.4) Likelihood "*Q[3]*"("* beta[3]*")"),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  # annotate("text", x = appAnnealLimit, y = -21.6, label = appAnnealLimit, color = "red", hjust = 1.0,size=3)+
-  theme_minimal()
-
-
-beta1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta1))+geom_line(lty=2)+geom_point()+
-  labs(
-    title = expression("(B.1) Convergence of " * beta[1]),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  theme_minimal()
-
-beta3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=beta3))+geom_line(lty=2)+geom_point()+
-  labs(
-    title = expression("(B.3) Convergence of " * beta[3]),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  theme_minimal()
-
-
-beta3_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta3))+geom_line(lty=2)+geom_point()+
-  labs(
-    title = expression("(B.4) Derivative of " * beta[3]),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  # geom_hline(yintercept = 0)+
-  # coord_cartesian(ylim=c(-1e-5,0))+
-  # scale_y_break(c(-1e-4, -1e-6), space = 0.3 , scales="free") +
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  theme_minimal()
-
-beta1_ggDiff = theta_df_full %>% ggplot(aes(x=tempering,y=diffBeta1))+geom_line(lty=2)+geom_point()+
-  labs(
-    title = expression("(B.2) Derivative of " * beta[1]),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  # scale_y_break(c(1e-4, 0.015), space = 0.3 , scales="free") +
-  # coord_cartesian(ylim=c(0,1e-4))+
-  # geom_hline(yintercept = 0)+
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  theme_minimal()
+roadResult = read.table("Proposed_Result_NoDAEM_Aarest_data.txt")
+# roadResult = read.table("Proposed_Result_NoDAEM_FRT_censord.txt")
+# roadResult = read.table("Proposed_Result_NoDAEM_RearDump.txt")
+# roadResult = read.table("Proposed_Result_NoDAEM_SerumReversal.txt")
+optFilename = roadResult$data_Name %>% unique()
 
 
 
-Lambda1_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda1))+geom_line(lty=2)+geom_point()+
-  labs(
-    title = expression("(C.1) Convergence of " * lambda[1]),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  theme_minimal()
+roadResult %>% ggplot(aes(x=Iter , y=Qlike))+geom_point()+geom_line()+labs(title="Expected log-likelihood",y="",x="Iteration")+theme(axis.text = element_text(size=12))
+roadResult %>% ggplot(aes(x=Iter , y=diffBeta1  ))+geom_point()+geom_line()+labs(title=expression("Gradient of "*beta[1]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+roadResult %>% ggplot(aes(x=Iter , y=diffBeta3  ))+geom_point()+geom_line()+labs(title=expression("Gradient of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
 
-Lambda2_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda2))+geom_line(lty=2)+geom_point()+
-  labs(
-    title = expression("(C.2) Convergence of " * lambda[2]),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  theme_minimal()
+roadResult %>% ggplot(aes(x=Iter , y=beta1))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[1]),y="",x="Iteration")+theme(axis.text = element_text(size=12))+geom_hline(yintercept = 1,lty=2,color="red")
+roadResult %>% ggplot(aes(x=Iter , y=1))    +geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[2]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+roadResult %>% ggplot(aes(x=Iter , y=beta3))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))+geom_hline(yintercept = 1,lty=2,color="red")
+roadResult %>% ggplot(aes(x=Iter , y=lambda1  ))+geom_point()+geom_line()+labs(title=expression("Convergence of "*lambda[1]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+roadResult %>% ggplot(aes(x=Iter , y=lambda2  ))+geom_point()+geom_line()+labs(title=expression("Convergence of "*lambda[2]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+roadResult %>% ggplot(aes(x=Iter , y=lambda3  ))+geom_point()+geom_line()+labs(title=expression("Convergence of "*lambda[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+roadResult %>% ggplot(aes(x=Iter , y=pi1))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[1]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+roadResult %>% ggplot(aes(x=Iter , y=pi2))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[2]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+roadResult %>% ggplot(aes(x=Iter , y=pi3))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
 
 
-Lambda3_gg = theta_df_full %>% ggplot(aes(x=tempering,y=lambda3))+geom_line(lty=2)+geom_point()+
-  labs(
-    title = expression("(C.3) Convergence of " * lambda[3]),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  theme_minimal()
 
 
-pi_gg = theta_df_full %>% ggplot(aes(x=tempering,y=pi3))+
-  geom_line(lty=2,size=1,color="black")+
-  geom_line(aes(x=tempering,y=pi1),lty=3,size=1,color="black")+
-  geom_line(aes(x=tempering,y=pi2),lty=4,size=1,color="black")+
-  labs(
-    title = expression("(C.4) Convergence of " * pi["k"]),
-    x = "Annealing parameter",
-    y = ""
-  ) +
-  # coord_cartesian(ylim=c(0.25,0.45))+
-  geom_vline(xintercept = appAnnealLimit,color="red",lty=3,size=1)+
-  annotate("text", x = 0.9, y = 0.32, label = expression(pi[1]),size=5)+
-  annotate("text", x = 0.9, y = 0.26, label = expression(pi[2]),size=5)+
-  annotate("text", x = 0.9, y = 0.4, label = expression(pi[3]),size=5)+
-  theme_minimal()
+A1=roadResult %>% ggplot(aes(x=Iter , y=Qlike))+geom_point()+geom_line()+labs(title="Expected log-likelihood",y="",x="Iteration")+theme(axis.text = element_text(size=12))
+A2=roadResult %>% ggplot(aes(x=Iter , y=diffBeta1  ))+geom_point()+geom_line()+labs(title=expression("Gradient of "*beta[1]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+A3=roadResult %>% ggplot(aes(x=Iter , y=diffBeta3  ))+geom_point()+geom_line()+labs(title=expression("Gradient of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+A4=roadResult %>% ggplot(aes(x=Iter , y=beta1))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[1]),y="",x="Iteration")+theme(axis.text = element_text(size=12))+geom_hline(yintercept = 1,lty=2,color="red")
+A5=roadResult %>% ggplot(aes(x=Iter , y=1))    +geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[2]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+A6=roadResult %>% ggplot(aes(x=Iter , y=beta3))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))+geom_hline(yintercept = 1,lty=2,color="red")
+A7=roadResult %>% ggplot(aes(x=Iter , y=lambda1  ))+geom_point()+geom_line()+labs(title=expression("Convergence of "*lambda[1]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+A8=roadResult %>% ggplot(aes(x=Iter , y=lambda2  ))+geom_point()+geom_line()+labs(title=expression("Convergence of "*lambda[2]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+A9=roadResult %>% ggplot(aes(x=Iter , y=lambda3  ))+geom_point()+geom_line()+labs(title=expression("Convergence of "*lambda[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+A10=roadResult %>% ggplot(aes(x=Iter , y=pi1))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[1]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+A11=roadResult %>% ggplot(aes(x=Iter , y=pi2))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[2]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+A12=roadResult %>% ggplot(aes(x=Iter , y=pi3))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
+
 
 
 
 title_grob <- textGrob(
-  "Failure of Device G", 
+  optFilename, 
   gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
 )
 
 grid.arrange(
-  qa,q1,q2,q3,
-  beta1_gg,beta1_ggDiff,beta3_gg,beta3_ggDiff,
-  Lambda1_gg,Lambda2_gg,Lambda3_gg,pi_gg,
-  ncol = 4,            # 열의 개수
+  A1,A2,A3,
+  A4,A5,A6,
+  A7,A8,A9,
+  A10,A11,A12,
+  ncol = 3,           # 열의 개수
   # heights = c(1, 1)     # 행 높이 비율
   top = title_grob
 )
 
 
+###############################################
 
-optimalData = theta_df_full %>% filter(tempering==appAnnealLimit) 
-optimalData %>% pull(beta1)
+
+optimalData = roadResult %>% filter(tempering==0.999999999) 
+optFilename = roadResult$data_Name %>% unique()
 optBeta1 = optimalData %>% pull(beta1)
 optBeta2 = 1
 optBeta3 = optimalData %>% pull(beta3)
@@ -171,18 +76,20 @@ optPi1 = optimalData %>% pull(pi1)
 optPi2 = optimalData %>% pull(pi2)
 optPi3 = optimalData %>% pull(pi3)
 
-time_DBlist = seq(min(time_vec),max(time_vec),by=0.01)
-DBbound1 = DecisionBoundary(time_DBlist,beta_vec = c(optimalData %>% pull(beta1),1,optimalData %>% pull(beta3)),lambda_vec = c(optimalData %>% pull(lambda1),optimalData %>% pull(lambda2),optimalData %>% pull(lambda3)),j=1)
-DBbound3 = DecisionBoundary(time_DBlist,beta_vec = c(optimalData %>% pull(beta1),1,optimalData %>% pull(beta3)),lambda_vec = c(optimalData %>% pull(lambda1),optimalData %>% pull(lambda2),optimalData %>% pull(lambda3)),j=3)
+time_DBlist = seq(min(time_vec),max(time_vec),by=0.1)
+
+DBbound1 = DecisionBoundary(time_DBlist,beta_vec = c(optBeta1,1,optBeta3),lambda_vec = c(optLambda1,optLambda2,optLambda3),pi_vec=c(optPi1,optPi2,optPi3),j=1)
+DBbound3 = DecisionBoundary(time_DBlist,beta_vec = c(optBeta1,1,optBeta3),lambda_vec = c(optLambda1,optLambda2,optLambda3),pi_vec=c(optPi1,optPi2,optPi3),j=3)
+
 
 changePoint1 = time_DBlist[which.min(DBbound1>1)]
 changePoint3 = time_DBlist[which.min(DBbound3<1)]
-DBdata = data.frame(time = time_DBlist, postProbRatio1 =DBbound1, postProbRatio3 =DBbound3 )
+DBdata = data.frame(time = time_DBlist, postProbRatio1 =DBbound1, postProbRatio3 = DBbound3 )
 DB1 = DBdata %>% ggplot(aes(x=time,y=postProbRatio1))+geom_line()+  theme_minimal()+
   geom_hline(yintercept = 1,lty=2)+
   annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
   labs(
-    title = "Posterior Ratio 1/2",
+    title = "Posterior Ratio (infant vs constant)",
     x = "",
     y = ""
   )+ scale_y_continuous(
@@ -191,7 +98,7 @@ DB1 = DBdata %>% ggplot(aes(x=time,y=postProbRatio1))+geom_line()+  theme_minima
   geom_point(data = data.frame(x = c(changePoint1), y = c(1)), aes(x = x, y = y), color = "blue", size = 3)
 DB3 = DBdata %>% ggplot(aes(x=time,y=postProbRatio3))+geom_line()+ 
   labs(
-    title = "Posterior Ratio 3/2",
+    title = "Posterior Ratio (wear-out vs constant)",
     x = "",
     y = ""
   ) +
@@ -222,12 +129,54 @@ hzPlot = hzData %>% ggplot(aes(x=time , y=hz1))+geom_line(color="red")+
 DecisionPlot = posteriorPlot+hzPlot
 
 grid.arrange(
-  DB1,DB3,hzPlot,
-  ncol=3,
+  DB1,DB3,
+  ncol=2,
   top = textGrob(
-    "Failure of Device G Decision Boundary", 
+    "Posterior Ratio in the Phase of Device G Failure", 
     gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
   )
 )
 
+
+########################################################
+
+overtime_DBlist = seq(min(time_vec),max(time_vec)*3,by=0.1)
+OverTime1 = DecisionBoundary(overtime_DBlist,beta_vec = c(optBeta1,1,optBeta3),lambda_vec = c(optLambda1,optLambda2,optLambda3),pi_vec=c(optPi1,optPi2,optPi3),j=1)
+OverTime3 = DecisionBoundary(overtime_DBlist,beta_vec = c(optBeta1,1,optBeta3),lambda_vec = c(optLambda1,optLambda2,optLambda3),pi_vec=c(optPi1,optPi2,optPi3),j=3)
+
+OverTime = data.frame( time = overtime_DBlist , posterior1=OverTime1,posterior3=OverTime3 )
+
+OverTime %>% ggplot(aes(x=time, y=posterior1))+
+  geom_line()+geom_hline(yintercept = 1,lty=2)
+
+
+OverTime %>% ggplot(aes(x=time, y=posterior1)) +
+  geom_rect(aes(xmin=0, xmax=300, ymin=-Inf, ymax=Inf), fill="lightgray", alpha=0.3) + 
+  geom_line() + 
+  geom_hline(yintercept = 1, lty=2) +
+  annotate("text", x=150, y=max(OverTime$posterior1, na.rm=TRUE)*1.01, 
+           label="Observed Data Range (0-300)", vjust=-0.5, size=4)+
+  # annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
+  labs(
+    title = "",
+    x = "",
+    y = ""
+  )+
+  geom_vline(xintercept = 300,lty=2)+
+  theme(plot.title = element_text(hjust = 0.5))
+
+OverTime %>% ggplot(aes(x=time, y=posterior3)) +
+  geom_rect(aes(xmin=0, xmax=300, ymin=-Inf, ymax=Inf), fill="lightgray", alpha=0.3) + 
+  geom_line() + 
+  geom_hline(yintercept = 1, lty=2) +
+  annotate("text", x=150, y=max(OverTime$posterior3, na.rm=TRUE)*1.01, 
+           label="Observed Data Range (0-300)", vjust=-0.5, size=4)+
+  # annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
+  labs(
+    title = "",
+    x = "",
+    y = ""
+  )+
+  geom_vline(xintercept = 300,lty=2)+
+  theme(plot.title = element_text(hjust = 0.5))
 

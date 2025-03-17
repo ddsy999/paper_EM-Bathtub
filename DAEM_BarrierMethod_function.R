@@ -57,7 +57,7 @@ diffL = function(beta,lambda,latentZ_mat,j){
   sum(latentZ_mat[,j]*(event_vec/lambda - time_vec^beta))
 }
 
-DecisionBoundary = function(t,beta_vec,lambda_vec,j=1){
+DecisionBoundary = function(t,beta_vec,lambda_vec,pi_vec,j=1){
   (pi_vec[j]/pi_vec[2])*(beta_vec[j]/beta_vec[2])*(lambda_vec[j]/lambda_vec[2])*t^(beta_vec[j]-1)*exp(-lambda_vec[j]*t^{beta_vec[j]}+lambda_vec[2]*t)
 }
 
