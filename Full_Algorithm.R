@@ -2,9 +2,9 @@ source("DAEM_BarrierMethod_function.R")
 
 # Reading Data
 # file_name = 'Aarest_data.txt'
-# file_name = 'FRT_censord.txt'
+file_name = 'FRT_censord.txt'
 # file_name = 'RearDump.txt'
-file_name = 'SerumReversal.txt'
+# file_name = 'SerumReversal.txt'
 
 fdata = read.table(file_name,header = T)
 dataName = tools::file_path_sans_ext(file_name)
@@ -23,7 +23,7 @@ learningRateBp = 2
 annealingSchedule = seq(0.6,0.999999999,length.out=maxIterAnnealing) 
 # annealingSchedule = 1 - exp(seq(log(1 - 0.7), log(1 - 0.99999), length.out = maxIterAnnealing))
 # annealingSchedule = seq(0.7,0.99999999,length.out=maxIterAnnealing) # FRT
-bpBaseSchedule =exp(seq(log(1e+2), log(1e+10), length.out = maxIterAnnealing))
+# bpBaseSchedule =exp(seq(log(1e+2), log(1e+10), length.out = maxIterAnnealing))
 bpBaseSchedule =exp(seq(log(1e+2), log(1e+7), length.out = maxIterAnnealing))
 # RearDump.txt 의 경우 bP를 아래와 같이 해야한다. 
 # bpBaseSchedule =exp(seq(log(1e+1), log(1e+5), length.out = maxIterAnnealing)) # 'RearDump.txt'
@@ -35,11 +35,12 @@ result_latentZ_mat = NULL
 initial_beta = c(0.5,1,2)
 initial_pi_set = c(1,1,1)
 initial_pi = initial_pi_set / sum(initial_pi_set)
-initial_lambda = initial_lambda_calc(time_vec,event_vec,
-                                     initial_beta,censored1 = ceiling(N*0.1),censored3 = ceiling(N*0.9))
-
 # initial_lambda = initial_lambda_calc(time_vec,event_vec,
 #                                      initial_beta,censored1 = ceiling(N*0.1),censored3 = ceiling(N*0.9))
+
+initial_lambda = initial_lambda_func(time_vec,event_vec,
+                                     initial_beta,ratio1=0.1,ratio3=0.9)
+
 ## setting parameter
 beta_vec = initial_beta
 pi_vec = initial_pi

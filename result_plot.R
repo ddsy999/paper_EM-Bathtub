@@ -34,7 +34,7 @@ A2=roadResult %>% ggplot(aes(x=Iter , y=diffBeta1  ))+geom_point()+geom_line()+l
 A3=roadResult %>% ggplot(aes(x=Iter , y=diffBeta3  ))+geom_point()+geom_line()+labs(title=expression("Gradient of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
 A4=roadResult %>% ggplot(aes(x=Iter , y=beta1))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[1]),y="",x="Iteration")+theme(axis.text = element_text(size=12))+geom_hline(yintercept = 1,lty=2,color="red")
 A5=roadResult %>% ggplot(aes(x=Iter , y=1))    +geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[2]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
-A6=roadResult %>% ggplot(aes(x=Iter , y=beta3))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))+geom_hline(yintercept = 1,lty=2,color="red")
+A6=roadResult %>% ggplot(aes(x=Iter , y=beta3))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
 A7=roadResult %>% ggplot(aes(x=Iter , y=lambda1  ))+geom_point()+geom_line()+labs(title=expression("Convergence of "*lambda[1]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
 A8=roadResult %>% ggplot(aes(x=Iter , y=lambda2  ))+geom_point()+geom_line()+labs(title=expression("Convergence of "*lambda[2]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
 A9=roadResult %>% ggplot(aes(x=Iter , y=lambda3  ))+geom_point()+geom_line()+labs(title=expression("Convergence of "*lambda[3]),y="",x="Iteration")+theme(axis.text = element_text(size=12))
@@ -45,24 +45,54 @@ A12=roadResult %>% ggplot(aes(x=Iter , y=pi3))+geom_point()+geom_line()+labs(tit
 
 
 
-title_grob <- textGrob(
-  optFilename, 
-  gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
-)
+
+# grid.arrange(
+#   A1,A2,A3,
+#   A4,A5,A6,
+#   A7,A8,A9,
+#   A10,A11,A12,
+#   ncol = 3,           # 열의 개수
+#   # heights = c(1, 1)     # 행 높이 비율
+#   top =  textGrob(
+#     optFilename, 
+#     gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
+#   )
+# )
+
+hline <- function() {
+  grid::linesGrob(y = unit(c(0.5, 0.5), "npc"), # y축 위치 (중앙)
+                  x = unit(c(0, 1), "npc"), # 왼쪽 끝에서 오른쪽 끝까지
+                  gp = gpar(col = "black", lwd = 2)) # 검은색, 두께 2pt
+}
 
 grid.arrange(
-  A1,A2,A3,
-  A4,A5,A6,
-  A7,A8,A9,
-  A10,A11,A12,
-  ncol = 3,           # 열의 개수
-  # heights = c(1, 1)     # 행 높이 비율
-  top = title_grob
+  A1, A2, A3,
+  hline(),  # 첫 번째 구분선
+  A4, A5, A6,
+  hline(),  # 두 번째 구분선
+  A7, A8, A9,
+  hline(),  # 세 번째 구분선
+  A10, A11, A12,
+  ncol = 3,
+  top = textGrob(
+    "", 
+    gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
+  ),
+  heights = c(1, 0.05, 1, 0.05, 1, 0.05, 1),  # 구분선 높이를 작게 설정
+  layout_matrix = rbind(
+    c(1, 2, 3),
+    c(4, 4, 4),  # 구분선 행
+    c(5, 6, 7),
+    c(8, 8, 8),  # 구분선 행
+    c(9, 10, 11),
+    c(12, 12, 12), # 구분선 행
+    c(13, 14, 15)
+  )
 )
 
-
 ###############################################
-
+# Over Time 
+###############################################
 
 optimalData = roadResult %>% filter(tempering==0.999999999) 
 optFilename = roadResult$data_Name %>% unique()
@@ -180,3 +210,166 @@ OverTime %>% ggplot(aes(x=time, y=posterior3)) +
   geom_vline(xintercept = 300,lty=2)+
   theme(plot.title = element_text(hjust = 0.5))
 
+
+###############################################
+# No DAEM 
+###############################################
+
+roadResult = read.table("Proposed_Result_Aarest_data.txt")
+NoDAEMroadResult = read.table("Proposed_Result_NoDAEM_Aarest_data.txt")
+
+roadResult = read.table("Proposed_Result_FRT_censord.txt")
+NoDAEMroadResult = read.table("Proposed_Result_NoDAEM_FRT_censord.txt")
+
+roadResult = read.table("Proposed_Result_RearDump.txt")
+NoDAEMroadResult = read.table("Proposed_Result_NoDAEM_RearDump.txt")
+
+roadResult = read.table("Proposed_Result_SerumReversal.txt")
+NoDAEMroadResult = read.table("Proposed_Result_NoDAEM_SerumReversal.txt")
+
+B1=roadResult %>% ggplot(aes(x=Iter , y=Qlike))+geom_point()+geom_line()+labs(title="log-likelihood",y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+B2=roadResult %>% ggplot(aes(x=Iter , y=diffBeta1  ))+geom_point()+geom_line()+labs(title=expression("Gradient of "*beta[1]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+B3=roadResult %>% ggplot(aes(x=Iter , y=diffBeta3  ))+geom_point()+geom_line()+labs(title=expression("Gradient of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+B4=roadResult %>% ggplot(aes(x=Iter , y=beta1))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[1]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))+geom_hline(yintercept = 1,lty=2,color="red")
+B5=roadResult %>% ggplot(aes(x=Iter , y=beta3))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+B10=roadResult %>% ggplot(aes(x=Iter , y=pi1))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[1]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+B11=roadResult %>% ggplot(aes(x=Iter , y=pi2))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[2]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+B12=roadResult %>% ggplot(aes(x=Iter , y=pi3))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[3]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+
+C1=NoDAEMroadResult %>% ggplot(aes(x=Iter , y=Qlike))+geom_point()+geom_line()+labs(title="log-likelihood",y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+C2=NoDAEMroadResult %>% ggplot(aes(x=Iter , y=diffBeta1  ))+geom_point()+geom_line()+labs(title=expression("Gradient of "*beta[1]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+C3=NoDAEMroadResult %>% ggplot(aes(x=Iter , y=diffBeta3  ))+geom_point()+geom_line()+labs(title=expression("Gradient of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+C4=NoDAEMroadResult %>% ggplot(aes(x=Iter , y=beta1))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[1]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))+geom_hline(yintercept = 1,lty=2,color="red")
+C5=NoDAEMroadResult %>% ggplot(aes(x=Iter , y=beta3))+geom_point()+geom_line()+labs(title=expression("Convergence of "*beta[3]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+C10=NoDAEMroadResult %>% ggplot(aes(x=Iter , y=pi1))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[1]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+C11=NoDAEMroadResult %>% ggplot(aes(x=Iter , y=pi2))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[2]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))
+C12=NoDAEMroadResult %>% ggplot(aes(x=Iter , y=pi3))+geom_point()+geom_line()+labs(title=expression("Convergence of "*pi[3]),y="",x="Iteration")+theme(axis.text = element_text(size=10), plot.title = element_text(size = 12, face = "bold"))+scale_y_continuous(labels = number_format(accuracy = 0.001))
+
+array(0,c(2,3))
+
+grid.arrange(
+  B1, B2, B3,
+  hline(),  # 첫 번째 구분선
+  B4, B5,nullGrob(),
+  hline(),  # 첫 번째 구분선
+  B10,B11,B12,
+  ncol = 3,
+  top = textGrob(
+    "", 
+    gp = gpar(fontsize = 5, fontface = "bold", col = "Black")
+  ),
+  heights = c(1, 0.05, 1,0.05,1),  # 구분선 높이를 작게 설정
+  layout_matrix = rbind(
+    c(1, 2, 3),
+    c(4, 4, 4),  # 구분선 행
+    c(5, 6, 7),
+    c(8, 8, 8),  # 구분선 행
+    c(9, 10, 11)
+  )
+)
+
+
+grid.arrange(
+  C1, C2, C3,
+  hline(),  # 첫 번째 구분선
+  C4, C5,nullGrob(),
+  hline(),  # 첫 번째 구분선
+  C10,C11,C12,
+  ncol = 3,
+  top = textGrob(
+    "", 
+    gp = gpar(fontsize = 5, fontface = "bold", col = "Black")
+  ),
+  heights = c(1, 0.05, 1,0.05,1),  # 구분선 높이를 작게 설정
+  layout_matrix = rbind(
+    c(1, 2, 3),
+    c(4, 4, 4),  # 구분선 행
+    c(5, 6, 7),
+    c(8, 8, 8),  # 구분선 행
+    c(9, 10, 11)
+  )
+)
+
+
+
+
+###############################################
+# Hazard rate 
+###############################################
+library(ggplot2)
+library(survival)
+library(survminer)
+library(tidyr)
+library(dplyr)
+
+source("DAEM_BarrierMethod_function.R")
+
+# Reading Data
+# file_name = 'Aarest_data.txt'
+# file_name = 'FRT_censord.txt'
+file_name = 'RearDump.txt'
+# file_name = 'SerumReversal.txt'
+
+fdata = read.table(file_name,header = T)
+dataName = tools::file_path_sans_ext(file_name)
+
+# Data preprocessing
+N = nrow(fdata)
+k=3 
+event_vec = as.numeric(fdata[,2])
+time_vec = as.numeric(fdata[,1])
+
+
+surv_obj <- Surv(time = time_vec, event = event_vec)
+fit <- survfit(surv_obj ~ 1)
+
+# 시간과 누적 생존율
+times <- fit$time
+surv_probs <- fit$surv
+
+# 누적 hazard (대략적 추정)
+cumhaz <- -log(surv_probs)
+
+# 시간 구간별 변화량
+delta_time <- diff(c(0, times))
+delta_hazard <- diff(c(0, cumhaz))
+hazard_rate <- delta_hazard / delta_time
+
+# 시간 중간값 (또는 사건 발생 시간)
+plot_times <- times
+
+
+initial_beta = c(0.5,1,2)
+initial_lambda = initial_lambda_calc(time_vec,event_vec,initial_beta,ratio1=0.2,ratio3=0.9)
+initial_lambda[3]=0.3
+hazard_df <- data.frame(
+  time = plot_times,
+  hazard = hazard_rate,
+  hazard1 = initial_beta[1]*initial_lambda[1]*unique(time_vec)^(initial_beta[1]-1),
+  hazard1 = initial_beta[2]*initial_lambda[2]*unique(time_vec)^(initial_beta[2]-1),
+  hazard3 = initial_beta[3]*initial_lambda[3]*unique(time_vec)^(initial_beta[3]-1)
+)
+
+hazardPoint = ggplot(hazard_df, aes(x = time, y = hazard)) +
+  geom_point(color = "blue", size = 2) +
+  geom_line(aes(y = hazard1), color = "red") +
+  labs(title = "Estimated Hazard Rate",
+       x = "Time",
+       y = "Hazard Rate") +
+  theme_minimal()
+
+
+
+hazard_long <- hazard_df %>%
+  select(time, hazard1, hazard2 = hazard1.1, hazard3) %>%
+  pivot_longer(cols = starts_with("hazard"),
+               names_to = "Model",
+               values_to = "Hazard")
+
+ggplot() +
+  geom_point(data = hazard_df, aes(x = time, y = hazard), color = "blue") +
+  geom_line(data = hazard_long, aes(x = time, y = Hazard, color = Model), size = 1) +
+  labs(title = "Estimated Hazard Rate with Model-Based Lines",
+       x = "Time",
+       y = "Hazard Rate") +
+  theme_minimal()

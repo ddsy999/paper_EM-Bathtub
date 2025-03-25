@@ -312,6 +312,45 @@ initial_lambda_calc = function(time_vec,event_vec,beta_vec,censored1,censored3){
 }
 
 
+
+initial_lambda_func = function(time_vec,event_vec,beta_vec,ratio1,ratio3){
+  surv_obj <- Surv(time = time_vec, event = event_vec)
+  fit <- survfit(surv_obj ~ 1)
+  
+  # 시간과 누적 생존율
+  times <- fit$time
+  surv_probs <- fit$surv
+  
+  # 누적 hazard (대략적 추정)
+  cumhaz <- -log(surv_probs)
+  
+  # 시간 구간별 변화량
+  delta_time <- diff(c(0, times))
+  delta_hazard <- diff(c(0, cumhaz))
+  hazard_rate <- delta_hazard / delta_time
+
+  df_haz = data.frame(time=unique(time_vec),hazard=hazard_rate,
+                      time1= beta_vec[1] * unique(time_vec)^(beta_vec[1] - 1),
+                      time3= beta_vec[3] * unique(time_vec)^(beta_vec[3] - 1)
+                      )
+  df_haz[(nrow(df_haz)),"hazard"] = df_haz[(nrow(df_haz)-1),"hazard"]
+  n = nrow(df_haz)  
+  subset_df1 = df_haz[1:ceiling(n*ratio1),]
+  subset_df3 = df_haz[ceiling(n*ratio3):nrow(df_haz),]
+  fit1 <- lm(hazard ~ 0 + time1, data = subset_df1)  # '0 +'는 intercept 제외
+  fit3 <- lm(hazard ~ 0 + time3, data = subset_df3)  # '0 +'는 intercept 제외
+  
+  # 결과 확인
+  lambda_est1 <- coef(fit1)[1]
+  lambda_est3 <- coef(fit3)[1]
+  lambda_est2 = mean(df_haz[ceiling(n*ratio1):ceiling(n*ratio3),"hazard"])
+  lambda_vec = c(lambda_est1,lambda_est2,lambda_est3)
+  return(lambda_vec)
+}
+
+
+
+
 initial_lambda_calc2 = function(time_vec,event_vec,beta_vec,censored1,censored3){
   library(survival)
   surv_obj <- Surv(time_vec, event_vec)
