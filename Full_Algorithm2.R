@@ -30,11 +30,11 @@ theta_df_full = NULL
 result_latentZ_mat = NULL
 ## initial Parameter : beta , lambda , pi
 initial_beta = c(0.5,1)
-initial_pi_set = c(1,1)
+initial_pi_set = c(1,1000)
 initial_pi = initial_pi_set / sum(initial_pi_set)
 
 initial_lambda = initial_lambda_func2(time_vec,event_vec,
-                                     initial_beta,ratio1=0.3,ratio3=0.6)
+                                     initial_beta,ratio1=0.2,ratio3=0.9)
 
 
 ## setting parameter
@@ -92,6 +92,7 @@ for( ITerAnneal in 1:maxIterAnnealing){
                                        lambda2=lambda_vec[2],
                                        # lambda3=lambda_vec[3],
                                        diffBeta1=diffB_onlyB(beta_vec[1],latentZ_mat,j=1),
+                                       diffBeta2=diffB_onlyB(beta_vec[2],latentZ_mat,j=2),
                                        # diffBeta3=diffB_onlyB(beta_vec[3],latentZ_mat,j=3),
                                        diffLambda1 = diffL(beta_vec[1],lambda_vec[1],latentZ_mat,j=1),
                                        # diffLambda3 = diffL(beta_vec[3],lambda_vec[3],latentZ_mat,j=3),
@@ -123,7 +124,6 @@ for( ITerAnneal in 1:maxIterAnnealing){
   }
   
 }
-
 
 
 result_Name = paste0("Proposed_Result","_",dataName,".txt")

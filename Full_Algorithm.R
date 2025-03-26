@@ -39,7 +39,7 @@ initial_pi = initial_pi_set / sum(initial_pi_set)
 #                                      initial_beta,censored1 = ceiling(N*0.1),censored3 = ceiling(N*0.9))
 
 initial_lambda = initial_lambda_func(time_vec,event_vec,
-                                     initial_beta,ratio1=0.1,ratio3=0.9)
+                                     initial_beta,ratio1=0.3,ratio3=0.7)
 
 ## setting parameter
 beta_vec = initial_beta
@@ -93,6 +93,7 @@ for( ITerAnneal in 1:maxIterAnnealing){
                                        beta1=beta_vec[1],beta3=beta_vec[3],
                                        lambda1=lambda_vec[1],lambda2=lambda_vec[2],lambda3=lambda_vec[3],
                                        diffBeta1=diffB_onlyB(beta_vec[1],latentZ_mat,j=1),
+                                       # diffBeta2=diffB_onlyB(beta_vec[2],latentZ_mat,j=2)
                                        diffBeta3=diffB_onlyB(beta_vec[3],latentZ_mat,j=3),
                                        diffLambda1 = diffL(beta_vec[1],lambda_vec[1],latentZ_mat,j=1),
                                        diffLambda3 = diffL(beta_vec[3],lambda_vec[3],latentZ_mat,j=3),
