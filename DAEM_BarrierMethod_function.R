@@ -106,67 +106,29 @@ Estep_result = function(beta,lambda,pi_vec,alpha=1){
              V3=wpdf3/sumWeibull)
 }
 
-# Estep_result = function(beta,lambda,pi_vec,alpha=1){
-#   # 각 값의 개수 계산
-#   value_counts <-as.vector(table(time_vec))
-#   # # 원본 벡터와 같은 순서로 각 값의 개수 적용
-# 
-#   # beta = beta_vec
-#   # lambda = lambda_vec
-#   # alpha=1
-#   wpdf1=(weibull_func(unique(time_vec),beta[1],lambda[1])*pi_vec[1])^value_counts
-#   wpdf2=(weibull_func(unique(time_vec),beta[2],lambda[2])*pi_vec[2])^value_counts
-#   wpdf3=(weibull_func(unique(time_vec),beta[3],lambda[3])*pi_vec[3])^value_counts
-#   wpdf1 = wpdf1^alpha
-#   wpdf2 = wpdf2^alpha
-#   wpdf3 = wpdf3^alpha
-#   sumWeibull = wpdf1+wpdf2+wpdf3
-#   
-# 
-#   # 사후확률 계산 (고유한 시간 값 기준)
-#   posterior_df = data.frame(
-#     V1 = wpdf1 / sumWeibull,
-#     V2 = wpdf2 / sumWeibull,
-#     V3 = wpdf3 / sumWeibull
-#   )
-#   
-#   # 중복된 시간값만큼 행을 반복하여 확장 (각 행을 value_counts 만큼 반복)
-#   expanded_df <- posterior_df[rep(1:nrow(posterior_df), times = value_counts), ]
-#   
-# }
-
-# Estep_result2 = function(beta,lambda,pi_vec,alpha=1){
-#   wpdf1=weibull_func(time_vec,beta[1],lambda[1])*pi_vec[1]
-#   wpdf2=weibull_func(time_vec,beta[2],lambda[2])*pi_vec[2]
-#   # wpdf3=weibull_func(time_vec,beta[3],lambda[3])*pi_vec[3]
-#   wpdf1 = wpdf1^alpha
-#   wpdf2 = wpdf2^alpha
-#   # wpdf3 = wpdf3^alpha
-#   sumWeibull = wpdf1+wpdf2
-#   data.frame(V1=wpdf1/sumWeibull,
-#              V2=wpdf2/sumWeibull)
-#   # V3=wpdf3/sumWeibull)
-# }
 
 
 
 Estep_result2 = function(beta,lambda,pi_vec,alpha=1){
-  # unq_time_vec = unique(time_vec)  
-  # 각 값의 개수 계산
-  value_counts <- table(time_vec)
-  # 원본 벡터와 같은 순서로 각 값의 개수 적용
-  count_vec <-   as.numeric(sapply(time_vec, function(x) value_counts[as.character(x)]))
+  
   wpdf1=weibull_func(time_vec,beta[1],lambda[1])*pi_vec[1]
   wpdf2=weibull_func(time_vec,beta[2],lambda[2])*pi_vec[2]
   # wpdf3=weibull_func(time_vec,beta[3],lambda[3])*pi_vec[3]
-  wpdf1 = (wpdf1^alpha)/count_vec
-  wpdf2 = (wpdf2^alpha)/count_vec
+  wpdf1 = wpdf1^alpha
+  wpdf2 = wpdf2^alpha
   # wpdf3 = wpdf3^alpha
-  sumWeibull = (wpdf1+wpdf2)
-  data.frame(V1=(wpdf1/sumWeibull),
-             V2=(wpdf2/sumWeibull)  )
-  # V3=wpdf3/sumWeibull)
+  # sumWeibull = wpdf1+wpdf2+wpdf3
+  sumWeibull = wpdf1+wpdf2
+  
+  data.frame(V1=wpdf1/sumWeibull,
+             V2=wpdf2/sumWeibull)
+             # V3=wpdf3/sumWeibull)
 }
+
+
+
+
+
 
 barrierFunc_1 = function(beta,latentZ_mat,bp,barrierExist=1){
   result =  diffB_onlyB(beta, latentZ_mat, j=1)+barrierExist*(1/beta -1/(1-beta))*(1/bp)
@@ -335,54 +297,56 @@ initial_lambda_func = function(time_vec,event_vec,beta_vec,ratio1,ratio3){
                       )
   df_haz[(nrow(df_haz)),"hazard"] = df_haz[(nrow(df_haz)-1),"hazard"]
   n = nrow(df_haz)  
-  subset_df1 = df_haz[1:ceiling(n*ratio1),]
-  subset_df3 = df_haz[ceiling(n*ratio3):nrow(df_haz),]
+  subset_df1 = df_haz %>% filter(time<max(times)*ratio1)
+  subset_df3 = df_haz %>% filter(time>max(times)*ratio3)
+  subset_df2 = df_haz %>% filter(time>max(times)*ratio1 & time<max(times)*ratio3 )
   fit1 <- lm(hazard ~ 0 + time1, data = subset_df1)  # '0 +'는 intercept 제외
   fit3 <- lm(hazard ~ 0 + time3, data = subset_df3)  # '0 +'는 intercept 제외
   
   # 결과 확인
   lambda_est1 <- coef(fit1)[1]
   lambda_est3 <- coef(fit3)[1]
-  lambda_est2 = mean(df_haz[ceiling(n*ratio1):ceiling(n*ratio3),"hazard"])
+  lambda_est2 = mean(subset_df2[,"hazard"])
   lambda_vec = c(lambda_est1,lambda_est2,lambda_est3)
   return(lambda_vec)
 }
 
 
 
+initial_lambda_func2 = function(time_vec,event_vec,beta_vec,ratio1,ratio3){
+  surv_obj <- Surv(time = time_vec, event = event_vec)
+  fit <- survfit(surv_obj ~ 1)
+  
+  # 시간과 누적 생존율
+  times <- fit$time
+  surv_probs <- fit$surv
+  
+  # 누적 hazard (대략적 추정)
+  cumhaz <- -log(surv_probs)
+  
+  # 시간 구간별 변화량
+  delta_time <- diff(c(0, times))
+  delta_hazard <- diff(c(0, cumhaz))
+  hazard_rate <- delta_hazard / delta_time
+  
+  df_haz = data.frame(time=unique(time_vec),hazard=hazard_rate,
+                      time1= beta_vec[1] * unique(time_vec)^(beta_vec[1] - 1)
+  )
+  df_haz[(nrow(df_haz)),"hazard"] = df_haz[(nrow(df_haz)-1),"hazard"]
+  n = nrow(df_haz)  
 
-initial_lambda_calc2 = function(time_vec,event_vec,beta_vec,censored1,censored3){
-  library(survival)
-  surv_obj <- Surv(time_vec, event_vec)
-  km_fit <- survfit(surv_obj ~ 1)
-  cum_hazard <- cumsum(km_fit$n.event / km_fit$n.risk)
-  hazard_rate <- diff(cum_hazard) / diff(km_fit$time)
-  # plot(hazard_rate)
+  subset_df1 = df_haz %>% filter(time<max(times)*ratio1)
+  # subset_df3 = df_haz %>% filter(time>max(times)*ratio3)
+  subset_df2 = df_haz %>% filter(time>max(times)*ratio1)
+  fit1 <- lm(hazard ~ 0 + time1, data = subset_df1)  # '0 +'는 intercept 제외
+  # fit3 <- lm(hazard ~ 0 + time3, data = subset_df3)  # '0 +'는 intercept 제외
   
-  # censored1 = floor((length(time_vec))/10)+1
-  # censored3 = floor((length(time_vec))*0.6)
-  # censored1까지의 시간 벡터 및 위험률 추출
-  time_censored1 <-unique(time_vec)[1:censored1]
-  # beta_vec[1]을 사용하여 시간 벡터를 제곱
-  time_transformed1 <- beta_vec[1]*time_censored1^(beta_vec[1]-1)
-  # 위험률 벡터의 검열된 값 추출
-  hazard_censored1 <- hazard_rate[1:censored1]
-  # 선형 회귀 실행
-  lm_fit1 <- lm(hazard_censored1 ~ time_transformed1)
-  
-  # # censored3 시간 벡터 및 위험률 추출
-  # time_censored3 <-unique(time_vec)[censored1:length(cum_hazard)]
-  # time_transformed3 <- beta_vec[3]*time_censored3^(beta_vec[3]-1)
-  # # 위험률 벡터의 검열된 값 추출
-  # hazard_censored3 <- hazard_rate[censored1:length(cum_hazard)]
-  # # 선형 회귀 실행
-  # lm_fit3 <- lm(hazard_censored3 ~ time_transformed3)
-  
-  
-  
-  ## initial lambda
-  # lambda_vec = c(abs(lm_fit1$coefficients[2]),abs(mean(hazard_rate[censored1:censored3],na.rm=T)),abs(lm_fit3$coefficients[2]) )%>% as.vector()
-  lambda_vec = c(abs(lm_fit1$coefficients[2]),abs(mean(hazard_rate[censored1:censored3],na.rm=T)) )%>% as.vector()
+  # 결과 확인
+  lambda_est1 <- coef(fit1)[1]
+  # lambda_est3 <- coef(fit3)[1]
+  lambda_est2 = mean(subset_df2[,"hazard"])
+  # lambda_vec = c(lambda_est1,lambda_est2,lambda_est3)
+  lambda_vec = c(lambda_est1,lambda_est2)
   return(lambda_vec)
 }
 
