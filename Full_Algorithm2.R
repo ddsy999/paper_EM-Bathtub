@@ -17,11 +17,11 @@ maxEMIter=1e+5
 maxIterAnnealing = 100
 learningRateBp = 2
 
-annealingSchedule = seq(0.6,0.999999999,length.out=maxIterAnnealing) 
+annealingSchedule = seq(0.1,0.999999999,length.out=maxIterAnnealing) 
 # annealingSchedule = 1 - exp(seq(log(1 - 0.7), log(1 - 0.99999), length.out = maxIterAnnealing))
 # annealingSchedule = seq(0.7,0.99999999,length.out=maxIterAnnealing) # FRT
 # bpBaseSchedule =exp(seq(log(1e+2), log(1e+10), length.out = maxIterAnnealing))
-bpBaseSchedule =exp(seq(log(1e+2), log(1e+7), length.out = maxIterAnnealing))
+bpBaseSchedule =exp(seq(log(1e+5), log(1e+10), length.out = maxIterAnnealing))
 # RearDump.txt 의 경우 bP를 아래와 같이 해야한다. 
 # bpBaseSchedule =exp(seq(log(1e+1), log(1e+5), length.out = maxIterAnnealing)) # 'RearDump.txt'
 
@@ -30,11 +30,11 @@ theta_df_full = NULL
 result_latentZ_mat = NULL
 ## initial Parameter : beta , lambda , pi
 initial_beta = c(0.5,1)
-initial_pi_set = c(1,1000)
+initial_pi_set = c(1,1)
 initial_pi = initial_pi_set / sum(initial_pi_set)
 
 initial_lambda = initial_lambda_func2(time_vec,event_vec,
-                                     initial_beta,ratio1=0.2,ratio3=0.9)
+                                     initial_beta,ratio1=0.1)
 
 
 ## setting parameter
@@ -43,7 +43,7 @@ pi_vec = initial_pi
 lambda_vec = initial_lambda
 latentZ_mat = Estep_result2(beta_vec,lambda_vec,pi_vec,alpha=1)
 
-
+latentZ_mat %>% distinct()
 
 for( ITerAnneal in 1:maxIterAnnealing){
   annealingPara = annealingSchedule[ITerAnneal]
@@ -55,6 +55,7 @@ for( ITerAnneal in 1:maxIterAnnealing){
     #### M-Step ####
     #### Pi : M-Step :  #### 
     new_pi = colSums(latentZ_mat)/N
+    # new_pi = colSums(latentZ_mat %>% distinct())/sum(latentZ_mat %>% distinct())
     #### Beta : M-Step : bijection method #### 
     candi_before_vec = beta_vec
     candi_lambda_vec = lambda_vec

@@ -313,7 +313,7 @@ initial_lambda_func = function(time_vec,event_vec,beta_vec,ratio1,ratio3){
 
 
 
-initial_lambda_func2 = function(time_vec,event_vec,beta_vec,ratio1,ratio3){
+initial_lambda_func2 = function(time_vec,event_vec,beta_vec,ratio1=0.2,ratio3=0.9){
   surv_obj <- Surv(time = time_vec, event = event_vec)
   fit <- survfit(surv_obj ~ 1)
   
@@ -334,7 +334,7 @@ initial_lambda_func2 = function(time_vec,event_vec,beta_vec,ratio1,ratio3){
   )
   df_haz[(nrow(df_haz)),"hazard"] = df_haz[(nrow(df_haz)-1),"hazard"]
   n = nrow(df_haz)  
-
+  
   subset_df1 = df_haz %>% filter(time<max(times)*ratio1)
   # subset_df3 = df_haz %>% filter(time>max(times)*ratio3)
   subset_df2 = df_haz %>% filter(time>max(times)*ratio1)
@@ -378,7 +378,9 @@ printResult2 = function(){
   print(paste0(c("pi_vec : " , sapply(pi_vec , function(i) round(i,2))),collapse = " / "))
   print(paste0(c("Lambda : " , sapply(lambda_vec , function(i) round(i,4))),collapse = " / "))
   print(paste0(c("Beta :",sapply(beta_vec , function(i) round(i,4))) ,collapse = " / "))
-  print(paste0("Beta diff : " , diffB_onlyB(beta_vec[1],latentZ_mat,j=1) %>% abs))
+  print(paste0("Beta1 diff : " , diffB_onlyB(beta_vec[1],latentZ_mat,j=1) %>% abs))
+  print(paste0("Beta2 diff : " , diffB_onlyB(beta_vec[2],latentZ_mat,j=2) %>% abs))
+  print(paste0("Lambda2 diff : " , diffL(beta_vec[2],lambda_vec[2],latentZ_mat,j=2) %>% abs))
   print(paste0(c("Beta1 at 1 is minus :",diffB_onlyB(1,latentZ_mat,j=1)<0,diffB_onlyB(1,latentZ_mat,j=1)) ,collapse = " / "))
   # print(paste0(c("Beta1 at 3 is positive :",diffB_onlyB(1,latentZ_mat,j=3)>0,diffB_onlyB(1,latentZ_mat,j=3)) ,collapse = " / "))
   # print(paste0(" data save : ", nrow(theta_df)))

@@ -104,61 +104,53 @@ optPi1 = optimalData %>% pull(pi1)
 optPi2 = optimalData %>% pull(pi2)
 # optPi3 = optimalData %>% pull(pi3)
 
-time_DBlist = seq(min(time_vec),max(time_vec)*10,by=1)
+time_DBlist = seq(min(time_vec),max(time_vec),by=1)
 
 DBbound1 = DecisionBoundary(time_DBlist,beta_vec = c(optBeta1,1,1),lambda_vec = c(optLambda1,optLambda2,1),pi_vec=c(optPi1,optPi2,1),j=1)
 # DBbound3 = DecisionBoundary(time_DBlist,beta_vec = c(optBeta1,1,optBeta3),lambda_vec = c(optLambda1,optLambda2,optLambda3),pi_vec=c(optPi1,optPi2,optPi3),j=3)
 
 
-changePoint1 = time_DBlist[which.min(DBbound1>1)]
+changePoint1 = max(time_DBlist[(DBbound1>1)])
 # changePoint3 = time_DBlist[which.min(DBbound3<1)]
-DBdata = data.frame(time = time_DBlist, postProbRatio1 =DBbound1 )
+DBdata = data.frame(time = time_DBlist, postProbRatio1 = DBbound1 )
 DB1 = DBdata %>% ggplot(aes(x=time,y=postProbRatio1))+geom_line()+  theme_minimal()+
   geom_hline(yintercept = 1,lty=2)+
-  annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
+  # annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
   labs(
     title = "Posterior Ratio (infant vs constant)",
     x = "",
     y = ""
-  )+ scale_y_continuous(
-    breaks = c(1,seq(2, 7, by = 5)) # y축 눈금을 5 단위로 설정
   )+
   geom_point(data = data.frame(x = c(changePoint1), y = c(1)), aes(x = x, y = y), color = "blue", size = 3)
-DB3 = DBdata %>% ggplot(aes(x=time,y=postProbRatio3))+geom_line()+ 
-  labs(
-    title = "Posterior Ratio (wear-out vs constant)",
-    x = "",
-    y = ""
-  ) +
-  annotate("text", x = changePoint3-10, y = 3,label=paste0("Time :",changePoint3))+
-  geom_point(data = data.frame(x = c(changePoint3), y = c(1)), aes(x = x, y = y), color = "blue", size = 3)+
-  theme_minimal()+geom_hline(yintercept = 1,lty=2)
+  # coord_cartesian(xlim =c(changePoint1-0.1,changePoint1+0.1),ylim = c(0,2) )
 
-posteriorPlot = DB1+DB3
+posteriorPlot = DB1
 
 hzData = data.frame(time = time_DBlist , hz1 = hazardrate(time_DBlist,optBeta1,optLambda1),
-                    hz2 = hazardrate(time_DBlist,optBeta2,optLambda2),
-                    hz3 = hazardrate(time_DBlist,optBeta3,optLambda3))
+                    hz2 = hazardrate(time_DBlist,optBeta2,optLambda2))
 
 hzPlot = hzData %>% ggplot(aes(x=time , y=hz1))+geom_line(color="red")+
-  geom_line(aes(x=time ,y=hz2),color="green3")+geom_line(aes(x=time ,y=hz3),color="blue")+
+  geom_line(aes(x=time ,y=hz2),color="green3")+
   # scale_y_break(c(0.3,2), space = 0.3 , scales="free") +
   geom_vline(xintercept = changePoint1,lty=2)+
-  geom_vline(xintercept = changePoint3,lty=2)+
+  # geom_vline(xintercept = changePoint3,lty=2)+
   labs(
     title = "Hazard Rate",
     x = "",
     y = ""
   )+
-  annotate("text", x = changePoint1, y = 0.01,hjust=-0.2,label=paste0("Time :",changePoint1))+
-  annotate("text", x = changePoint3, y = 0.01,hjust=-0.3,label=paste0("Time :",changePoint3))+
+  # annotate("text", x = changePoint1, y = 0.01,hjust=-0.2,label=paste0("Time :",changePoint1))+
+  # annotate("text", x = changePoint3, y = 0.01,hjust=-0.3,label=paste0("Time :",changePoint3))+
+  # coord_cartesian(xlim = c(3000,4000))+
   theme_minimal()
+
+hzPlot
 
 DecisionPlot = posteriorPlot+hzPlot
 
 grid.arrange(
-  DB1,DB3,
-  ncol=2,
+  DB1,
+  ncol=1,
   top = textGrob(
     "Posterior Ratio in the Phase of Device G Failure", 
     gp = gpar(fontsize = 16, fontface = "bold", col = "Black")
@@ -305,7 +297,7 @@ source("DAEM_BarrierMethod_function.R")
 # Reading Data
 # file_name = 'Aarest_data.txt'
 # file_name = 'FRT_censord.txt'
-file_name = 'RearDump.txt'
+# file_name = 'RearDump.txt'
 # file_name = 'SerumReversal.txt'
 
 fdata = read.table(file_name,header = T)
@@ -313,7 +305,6 @@ dataName = tools::file_path_sans_ext(file_name)
 
 # Data preprocessing
 N = nrow(fdata)
-k=3 
 event_vec = as.numeric(fdata[,2])
 time_vec = as.numeric(fdata[,1])
 
@@ -335,28 +326,39 @@ hazard_rate <- delta_hazard / delta_time
 
 # 시간 중간값 (또는 사건 발생 시간)
 plot_times <- times
+hazardOny_df <- data.frame(
+  time = plot_times,
+  hazard = hazard_rate
+)
 
+hazardOnlyPoint = ggplot(hazardOny_df, aes(x = time, y = hazard)) +
+  geom_point(color = "blue", size = 2) +
+  labs(title = "Estimated Hazard Rate",
+       x = "Time",
+       y = "Hazard Rate") +
+  theme_minimal()
+hazardOnlyPoint
 
-initial_beta = c(0.5,1,2)
-initial_lambda = initial_lambda_calc(time_vec,event_vec,initial_beta,ratio1=0.2,ratio3=0.9)
-initial_lambda[3]=0.3
+initial_beta = c(0.1,1)
+initial_lambda = initial_lambda_func2(time_vec,event_vec,initial_beta,ratio1=0.01,ratio3=0.9)
+# initial_lambda[3]=0.3
 hazard_df <- data.frame(
   time = plot_times,
   hazard = hazard_rate,
   hazard1 = initial_beta[1]*initial_lambda[1]*unique(time_vec)^(initial_beta[1]-1),
-  hazard1 = initial_beta[2]*initial_lambda[2]*unique(time_vec)^(initial_beta[2]-1),
-  hazard3 = initial_beta[3]*initial_lambda[3]*unique(time_vec)^(initial_beta[3]-1)
+  hazard2 = initial_beta[2]*initial_lambda[2]*unique(time_vec)^(initial_beta[2]-1)
 )
 
 hazardPoint = ggplot(hazard_df, aes(x = time, y = hazard)) +
   geom_point(color = "blue", size = 2) +
   geom_line(aes(y = hazard1), color = "red") +
+  geom_line(aes(y = hazard2), color = "green") +
   labs(title = "Estimated Hazard Rate",
        x = "Time",
        y = "Hazard Rate") +
   theme_minimal()
 
-
+hazardPoint
 
 hazard_long <- hazard_df %>%
   select(time, hazard1, hazard2 = hazard1.1, hazard3) %>%
