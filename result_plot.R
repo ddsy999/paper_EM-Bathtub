@@ -307,8 +307,9 @@ source("DAEM_BarrierMethod_function.R")
 # Reading Data
 # file_name = 'Aarest_data.txt'
 # file_name = 'FRT_censord.txt'
-file_name = 'RearDump.txt'
+# file_name = 'RearDump.txt'
 # file_name = 'SerumReversal.txt'
+file_name = 'LFP.txt'
 
 fdata = read.table(file_name,header = T)
 dataName = tools::file_path_sans_ext(file_name)
@@ -337,39 +338,128 @@ hazard_rate <- delta_hazard / delta_time
 
 # 시간 중간값 (또는 사건 발생 시간)
 plot_times <- times
-
-
-initial_beta = c(0.5,1,2)
-initial_lambda = initial_lambda_calc(time_vec,event_vec,initial_beta,ratio1=0.2,ratio3=0.9)
-initial_lambda[3]=0.3
+# 
+# 
+# initial_beta = c(0.5,1,2)
+# initial_lambda = initial_lambda_calc(time_vec,event_vec,initial_beta,ratio1=0.2,ratio3=0.9)
+# initial_lambda[3]=0.3
 hazard_df <- data.frame(
   time = plot_times,
-  hazard = hazard_rate,
-  hazard1 = initial_beta[1]*initial_lambda[1]*unique(time_vec)^(initial_beta[1]-1),
-  hazard1 = initial_beta[2]*initial_lambda[2]*unique(time_vec)^(initial_beta[2]-1),
-  hazard3 = initial_beta[3]*initial_lambda[3]*unique(time_vec)^(initial_beta[3]-1)
+  hazard = hazard_rate
+  # hazard1 = initial_beta[1]*initial_lambda[1]*unique(time_vec)^(initial_beta[1]-1),
+  # hazard1 = initial_beta[2]*initial_lambda[2]*unique(time_vec)^(initial_beta[2]-1),
+  # hazard3 = initial_beta[3]*initial_lambda[3]*unique(time_vec)^(initial_beta[3]-1)
 )
-
+hazard_df = hazard_df[1:(length(times)-1),]
 hazardPoint = ggplot(hazard_df, aes(x = time, y = hazard)) +
-  geom_point(color = "blue", size = 2) +
-  geom_line(aes(y = hazard1), color = "red") +
-  labs(title = "Estimated Hazard Rate",
+  geom_point(color = "black", size = 2) +
+  geom_line()+
+  # geom_line(aes(y = hazard1), color = "red") +
+  labs(title = "LFP",
        x = "Time",
        y = "Hazard Rate") +
   theme_minimal()
+hz5 = hazardPoint
+
+hz1+hz2+hz4+hz5
+
+
+grid.arrange(
+  hz1,hz2,hz4,hz5,
+  top = textGrob(
+    "Empirical Hazard Rate Plot", 
+    gp = gpar(fontsize = 15, fontface = "bold", col = "Black")
+  ),
+  ncol = 4)
+
+# 
+# hazard_long <- hazard_df %>%
+#   select(time, hazard1, hazard2 = hazard1.1, hazard3) %>%
+#   pivot_longer(cols = starts_with("hazard"),
+#                names_to = "Model",
+#                values_to = "Hazard")
+# 
+# ggplot() +
+#   geom_point(data = hazard_df, aes(x = time, y = hazard), color = "blue") +
+#   geom_line(data = hazard_long, aes(x = time, y = Hazard, color = Model), size = 1) +
+#   labs(title = "Estimated Hazard Rate with Model-Based Lines",
+#        x = "Time",
+#        y = "Hazard Rate") +
+#   theme_minimal()
 
 
 
-hazard_long <- hazard_df %>%
-  select(time, hazard1, hazard2 = hazard1.1, hazard3) %>%
-  pivot_longer(cols = starts_with("hazard"),
-               names_to = "Model",
-               values_to = "Hazard")
+########################################################################
+## TTT-plot 
+##########################################
 
-ggplot() +
-  geom_point(data = hazard_df, aes(x = time, y = hazard), color = "blue") +
-  geom_line(data = hazard_long, aes(x = time, y = Hazard, color = Model), size = 1) +
-  labs(title = "Estimated Hazard Rate with Model-Based Lines",
-       x = "Time",
-       y = "Hazard Rate") +
+source("DAEM_BarrierMethod_function.R")
+
+# Reading Data
+# file_name = 'Aarest_data.txt'
+file_name = 'FRT_censord.txt'
+# file_name = 'RearDump.txt' #제외
+# file_name = 'SerumReversal.txt'
+# file_name = 'LFP.txt'
+
+fdata = read.table(file_name,header = T)
+dataName = tools::file_path_sans_ext(file_name)
+
+# 고장 데이터만 정렬
+failures <- sort(fdata$time[fdata$event == 1])
+n <- length(failures)
+T_total <- sum(failures)
+
+# TTT 좌표 계산
+x_vals <- (1:n) / n
+y_vals <- sapply(1:n, function(i) {
+  (sum(failures[1:i]) + (n - i) * failures[i]) / T_total
+})
+
+ttt_df <- data.frame(x = x_vals, y = y_vals)
+
+# TTT plot
+TTT2=ggplot(ttt_df, aes(x = x, y = y)) +
+  geom_step(direction = "hv") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50") +
+  labs(
+    title = "Device G",
+    x = "Proportion of Failures (i/n)",
+    y = "TTT Transform"
+  ) +
   theme_minimal()
+
+TTT1
+TTT2
+TTT3 #제외
+TTT4
+TTT5
+
+TTT1+TTT2+TTT4+TTT5
+
+
+
+grid.arrange(
+  TTT1,TTT2,TTT4,TTT5,
+  top = textGrob(
+    "Total Time on Test (TTT) Plot", 
+    gp = gpar(fontsize = 15, fontface = "bold", col = "Black")
+  ),
+  ncol = 4)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
