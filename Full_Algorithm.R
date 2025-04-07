@@ -2,9 +2,10 @@ source("DAEM_BarrierMethod_function.R")
 
 # Reading Data
 # file_name = 'Aarest_data.txt'
-file_name = 'FRT_censord.txt'
+# file_name = 'FRT_censord.txt'
 # file_name = 'RearDump.txt'
 # file_name = 'SerumReversal.txt'
+file_name = 'LFP.txt'
 
 fdata = read.table(file_name,header = T)
 dataName = tools::file_path_sans_ext(file_name)
@@ -14,6 +15,7 @@ N = nrow(fdata)
 k=3 
 event_vec = as.numeric(fdata[,2])
 time_vec = as.numeric(fdata[,1])
+
 
 tot=1e-9
 maxEMIter=1e+5
