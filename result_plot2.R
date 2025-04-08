@@ -92,13 +92,16 @@ p_grad_log <- ggplot(grad_data_log, aes(x = Iter, y = LogValue, color = Componen
 
 
 grid.arrange(
-  A4, nullGrob(), A2, nullGrob(),
-  p_grad_log, #nullGrob() #+facet_wrap(.~Component, scales = "free_y")
+  A4, A2, p_grad_log, #nullGrob() #+facet_wrap(.~Component, scales = "free_y")
   p_pi,A1,hz_resultPlot,
   ncol = 4,
   top = textGrob(
     "", 
     gp = gpar(fontsize = 15, fontface = "bold", col = "Black")
+  ),
+  layout_matrix = rbind(
+    c(1, 2, 3,3),
+    c(4, 5, 6,6)  # 구분선 행
   )
 )
 
@@ -216,9 +219,9 @@ hz_plot_df <- bind_rows(
   hazard_df %>% rename(Hazard = hazard)
 )
 
-hz_resultPlot = ggplot(hz_plot_df, aes(x = time, y = Hazard, color = Component)) +
-  geom_line(data = filter(hz_plot_df, Component != "Empirical hazard rate"), size = 1) +
-  geom_point(data = filter(hz_plot_df, Component == "Empirical hazard rate"), size = 2,alpha=0.4) +
+hz_resultPlot = ggplot(hz_plot_df %>% filter(time<600), aes(x = time, y = Hazard, color = Component)) +
+  geom_line(data = filter(hz_plot_df%>% filter(time<600), Component != "Empirical hazard rate"), size = 1) +
+  geom_point(data = filter(hz_plot_df%>% filter(time<600), Component == "Empirical hazard rate"), size = 2,alpha=0.4) +
   labs(
     title = "Hazard function",
     x = "",
