@@ -2,10 +2,10 @@ source("DAEM_BarrierMethod_function.R")
 
 # Reading Data
 # file_name = 'Aarest_data.txt'
-# file_name = 'FRT_censord.txt'
+file_name = 'FRT_censord.txt'
 # file_name = 'RearDump.txt'
-# file_name = 'SerumReversal.txt'
-file_name = 'LFP.txt'
+file_name = 'SerumReversal.txt'
+# file_name = 'LFP.txt'
 
 fdata = read.table(file_name,header = T)
 dataName = tools::file_path_sans_ext(file_name)
@@ -22,13 +22,19 @@ maxEMIter=1e+5
 maxIterAnnealing = 100
 learningRateBp = 2
 
-annealingSchedule = seq(0.6,0.999999999,length.out=maxIterAnnealing) 
+
+annealingSchedule = seq(0.2,0.999999999,length.out=maxIterAnnealing) 
 # annealingSchedule = 1 - exp(seq(log(1 - 0.7), log(1 - 0.99999), length.out = maxIterAnnealing))
 # annealingSchedule = seq(0.7,0.99999999,length.out=maxIterAnnealing) # FRT
 # bpBaseSchedule =exp(seq(log(1e+2), log(1e+10), length.out = maxIterAnnealing))
 bpBaseSchedule =exp(seq(log(1e+2), log(1e+7), length.out = maxIterAnnealing))
+# bpBaseSchedule =seq((1e+2), (1e+7), length.out = maxIterAnnealing)
 # RearDump.txt 의 경우 bP를 아래와 같이 해야한다. 
 # bpBaseSchedule =exp(seq(log(1e+1), log(1e+5), length.out = maxIterAnnealing)) # 'RearDump.txt'
+
+# data.frame(x=1:100,y=annealingSchedule) %>% ggplot(aes(x=x,y=y))+geom_point()
+# data.frame(x=1:100,y=bpBaseSchedule) %>% ggplot(aes(x=x,y=y))+geom_point()
+
 
 ## result 기록 
 theta_df_full = NULL
@@ -128,21 +134,11 @@ for( ITerAnneal in 1:maxIterAnnealing){
 
 }
 
-
+theta_df_full %>% tail
+plot(theta_df_full$diffBeta3)
 
 result_Name = paste0("Proposed_Result","_",dataName,".txt")
 write.table(theta_df_full , file = result_Name)
-
-
-
-
-
-
-
-
-
-
-
 
 
 

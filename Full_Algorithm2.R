@@ -21,7 +21,7 @@ annealingSchedule = seq(0.1,0.999999999,length.out=maxIterAnnealing)
 # annealingSchedule = 1 - exp(seq(log(1 - 0.7), log(1 - 0.99999), length.out = maxIterAnnealing))
 # annealingSchedule = seq(0.7,0.99999999,length.out=maxIterAnnealing) # FRT
 # bpBaseSchedule =exp(seq(log(1e+2), log(1e+10), length.out = maxIterAnnealing))
-bpBaseSchedule =exp(seq(log(1e+5), log(1e+10), length.out = maxIterAnnealing))
+bpBaseSchedule =exp(seq(log(1e+2), log(1e+7), length.out = maxIterAnnealing))
 # RearDump.txt 의 경우 bP를 아래와 같이 해야한다. 
 # bpBaseSchedule =exp(seq(log(1e+1), log(1e+5), length.out = maxIterAnnealing)) # 'RearDump.txt'
 

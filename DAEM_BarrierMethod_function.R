@@ -54,7 +54,7 @@ diffB_onlyB = function(beta,latentZ_mat,j){
 }
 
 diffL = function(beta,lambda,latentZ_mat,j){
-  sum(latentZ_mat[,j]*(event_vec/lambda - time_vec^beta))
+  sum(latentZ_mat[,j]*(event_vec/lambda)) - sum(latentZ_mat[,j]*time_vec^beta)
 }
 
 DecisionBoundary = function(t,beta_vec,lambda_vec,pi_vec,j=1){
@@ -349,6 +349,30 @@ initial_lambda_func2 = function(time_vec,event_vec,beta_vec,ratio1=0.2,ratio3=0.
   lambda_vec = c(lambda_est1,lambda_est2)
   return(lambda_vec)
 }
+
+
+
+find_last_stable_index <- function(vec, c) {
+  # 변화량 계산 (길이 n-1)
+  delta <- abs(diff(vec))
+  
+  # 변화량이 임계값 c 이상인 구간 판단
+  above_c <- delta > c
+  
+  # 변화 지점 (변화가 작다가 다시 커진 시점: FALSE → TRUE)
+  change_points <- which(diff(above_c) != 0)
+  
+  # 마지막으로 안정 → 불안정(즉, FALSE → TRUE) 전환된 시점 찾기
+  last_false_to_true <- tail(change_points[above_c[change_points + 1]], 1)
+  
+  # 반환: 변화 시작 직전 인덱스 (vec 인덱스 기준으로 보정 필요)
+  if (length(last_false_to_true) == 0) {
+    return(length(vec))
+  } else {
+    return(last_false_to_true + 1)  # diff 기준이므로 +1 보정
+  }
+}
+
 
 
 
