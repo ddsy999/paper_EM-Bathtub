@@ -4,7 +4,7 @@ source("DAEM_BarrierMethod_function.R")
 # file_name = 'Aarest_data.txt'
 file_name = 'FRT_censord.txt'
 # file_name = 'RearDump.txt'
-file_name = 'SerumReversal.txt'
+# file_name = 'SerumReversal.txt'
 # file_name = 'LFP.txt'
 
 fdata = read.table(file_name,header = T)
