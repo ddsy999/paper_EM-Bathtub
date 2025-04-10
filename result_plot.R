@@ -1,9 +1,9 @@
 
 
 # roadResult = read.table("Proposed_Result_RearDump.txt")
-# roadResult = read.table("Proposed_Result_Aarest_data.txt")
+roadResult = read.table("Proposed_Result_Aarest_data.txt")
 # roadResult = read.table("Proposed_Result_FRT_censord.txt")
-roadResult = read.table("Proposed_Result_SerumReversal.txt")
+# roadResult = read.table("Proposed_Result_SerumReversal.txt")
 
 # roadResult = read.table("Proposed_Result_NoDAEM_Aarest_data.txt")
 # roadResult = read.table("Proposed_Result_NoDAEM_FRT_censord.txt")
@@ -175,7 +175,7 @@ changePoint3 = time_DBlist[which.min(DBbound3<1)]
 DBdata = data.frame(time = time_DBlist, postProbRatio1 =DBbound1, postProbRatio3 = DBbound3 )
 DB1 = DBdata %>% ggplot(aes(x=time,y=postProbRatio1))+geom_line()+  theme_minimal()+
   geom_hline(yintercept = 1,lty=2)+
-  annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
+  annotate("text", x = changePoint1+10, y = 2,label=paste0("Time :",changePoint1))+
   labs(
     title = "Posterior Ratio (infant vs constant)",
     x = "",
@@ -190,11 +190,12 @@ DB3 = DBdata %>% ggplot(aes(x=time,y=postProbRatio3))+geom_line()+
     x = "",
     y = ""
   ) +
-  annotate("text", x = changePoint3-10, y = 3,label=paste0("Time :",changePoint3))+
+  annotate("text", x = changePoint3-10, y = 5,label=paste0("Time :",changePoint3))+
   geom_point(data = data.frame(x = c(changePoint3), y = c(1)), aes(x = x, y = y), color = "blue", size = 3)+
   theme_minimal()+geom_hline(yintercept = 1,lty=2)
 
 posteriorPlot = DB1+DB3
+
 
 hzData = data.frame(time = time_DBlist , hz1 = hazardrate(time_DBlist,optBeta1,optLambda1),
                     hz2 = hazardrate(time_DBlist,optBeta2,optLambda2),
@@ -218,6 +219,10 @@ hzPlot = hzData %>% ggplot(aes(x=time , y=hz1))+geom_line(color="red")+
 
 
 
+
+
+
+library(tidyr)
 
 fdata = read.table(paste0(optFilename,".txt"),header = T)
 dataName = tools::file_path_sans_ext(optFilename)
@@ -297,6 +302,15 @@ hz_resultPlot = ggplot(hz_plot_df, aes(x = time, y = Hazard, color = Component))
 
 
 hz_resultPlot
+
+
+(DB1+DB3)/
+hazard_df %>% ggplot(aes(x=time,y=hazard))+geom_point(size=3,alpha=0.5)+geom_line(color="blue")+
+  annotate("text", x = changePoint1, y = 0.4,hjust=-0.2,label=paste0("Time :",changePoint1))+
+  annotate("text", x = changePoint3, y = 0.4,hjust=1.5,label=paste0("Time :",changePoint3))+
+  geom_vline(xintercept = changePoint1,lty=2,color="red")+
+  geom_vline(xintercept = changePoint3,lty=2,color="red")+
+  labs(x="",y="",title="Empirical Hazard Rate")
 
 
 # 

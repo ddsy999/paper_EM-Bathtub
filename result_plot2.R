@@ -116,7 +116,7 @@ grid.arrange(
 ###############################################
 dim(roadResult)
 # optimalData = roadResult %>% filter(tempering==0.999999999)
-# optimalData = roadResult[find_last_stable_index(roadResult$diffBeta1,0.1) ,]
+optimalData = roadResult[optimalEnd,]
 # optimalData = roadResult[ 15,]
 optFilename = roadResult$data_Name %>% unique()
 optBeta1 = optimalData %>% pull(beta1)
@@ -129,24 +129,22 @@ optPi1 = optimalData %>% pull(pi1)
 optPi2 = optimalData %>% pull(pi2)
 # optPi3 = optimalData %>% pull(pi3)
 
-time_DBlist = seq(min(time_vec),max(time_vec),by=0.1)
+time_DBlist = seq(min(time_vec),max(time_vec),by=1)
 
 DBbound1 = DecisionBoundary(time_DBlist,beta_vec = c(optBeta1,1,optBeta3),lambda_vec = c(optLambda1,optLambda2,optLambda3),pi_vec=c(optPi1,optPi2,optPi3),j=1)
 # DBbound3 = DecisionBoundary(time_DBlist,beta_vec = c(optBeta1,1,optBeta3),lambda_vec = c(optLambda1,optLambda2,optLambda3),pi_vec=c(optPi1,optPi2,optPi3),j=3)
 
 changePoint1 = time_DBlist[which.min(DBbound1>1)]
 # changePoint3 = time_DBlist[which.min(DBbound3<1)]
-DBdata = data.frame(time = time_DBlist, postProbRatio1 =DBbound1, postProbRatio3 = DBbound3 )
+DBdata = data.frame(time = time_DBlist, postProbRatio1 =DBbound1 )
 DB1 = DBdata %>% ggplot(aes(x=time,y=postProbRatio1))+geom_line()+  theme_minimal()+
   geom_hline(yintercept = 1,lty=2)+
-  annotate("text", x = changePoint1+10, y = 1.3,label=paste0("Time :",changePoint1))+
+  annotate("text", x = changePoint1+10, y = 100,label=paste0("Time :",changePoint1))+
   labs(
     title = "Posterior Ratio (infant vs constant)",
     x = "",
     y = ""
-  )+ scale_y_continuous(
-    breaks = c(1,seq(2, 7, by = 5)) # y축 눈금을 5 단위로 설정
-  )+
+  )+ 
   geom_point(data = data.frame(x = c(changePoint1), y = c(1)), aes(x = x, y = y), color = "blue", size = 3)
 
 posteriorPlot = DB1
@@ -255,6 +253,14 @@ hz_resultPlot = ggplot(hz_plot_df %>% filter(time<600), aes(x = time, y = Hazard
 
 hz_resultPlot
 
+
+(DB1+nullGrob())/
+  hazard_df %>% ggplot(aes(x=time,y=hazard))+geom_point(size=3,alpha=0.5)+geom_line(color="blue")+
+  annotate("text", x = changePoint1, y = 0.001,hjust=-0.2,label=paste0("Time :",changePoint1))+
+  # annotate("text", x = changePoint3, y = 0.4,hjust=1.5,label=paste0("Time :",changePoint3))+
+  geom_vline(xintercept = changePoint1,lty=2,color="red")+
+  # geom_vline(xintercept = changePoint3,lty=2,color="red")+
+  labs(x="",y="",title="Empirical Hazard Rate")
 
 
 
