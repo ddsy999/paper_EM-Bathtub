@@ -2,7 +2,8 @@
 source("DAEM_BarrierMethod_function.R")
 
 # Data 설정
-file_name = 'FRT_censord.txt'
+# file_name = 'FRT_censord.txt'
+file_name = 'Aarest_data.txt'
 fdata = read.table(file_name, header = TRUE)
 dataName = tools::file_path_sans_ext(file_name)
 
@@ -22,7 +23,7 @@ bpBaseSchedule = exp(seq(log(1e+2), log(1e+7), length.out = maxIterAnnealing))
 
 # 초기값 리스트 정의
 initial_beta_list = list(
-  c(0.1, 1, 1.5),
+  c(0.1, 1, 5),
   c(0.5, 1 ,2),
   c(0.9, 1, 10)
 )
@@ -76,8 +77,8 @@ for (b_id in seq_along(initial_beta_list)) {
         new_beta3 = result3$root
         ################
         
-        new_beta1 = barrier_beta1(candi_before_vec[1], latentZ_mat, bp = bpBase)
-        new_beta3 = barrier_beta3(candi_before_vec[3], latentZ_mat, bp = bpBase)
+        # new_beta1 = barrier_beta1(candi_before_vec[1], latentZ_mat, bp = bpBase)
+        # new_beta3 = barrier_beta3(candi_before_vec[3], latentZ_mat, bp = bpBase)
         
         
         new_beta = c(new_beta1, 1, new_beta3)
@@ -175,13 +176,16 @@ for (file_name in file_list) {
 }
 
 # 정렬된 결과 확인
-result_summary_sorted <- result_summary %>%
-  select(source_file, Iter, beta1, beta3, diffBeta1, diffBeta3, abs_diff_sum) %>%
-  arrange(abs_diff_sum)
+# result_summary_sorted <- result_summary %>%
+#   select(source_file, Iter, beta1, beta3, diffBeta1, diffBeta3, abs_diff_sum) %>%
+#   arrange(abs_diff_sum)
 
 # 출력
-print(result_summary_sorted)
+print(result_summary)
 
+
+
+write.csv(result_summary,paste0("OEMSumResult_", dataName, "_.csv"),row.names = F)
 
 
 

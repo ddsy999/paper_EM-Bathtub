@@ -2,6 +2,7 @@ source("DAEM_BarrierMethod_function.R")
 
 # Data 설정
 file_name = 'FRT_censord.txt'
+# file_name = 'Aarest_data.txt'
 fdata = read.table(file_name, header = TRUE)
 dataName = tools::file_path_sans_ext(file_name)
 
@@ -16,12 +17,12 @@ maxIterAnnealing = 100
 learningRateBp = 2
 
 annealingSchedule = seq(0.2, 0.999999999, length.out = maxIterAnnealing)
-annealingSchedule = rep(1,maxIterAnnealing)
+# annealingSchedule = rep(1,maxIterAnnealing)
 bpBaseSchedule = exp(seq(log(1e+2), log(1e+7), length.out = maxIterAnnealing))
 
 # 초기값 리스트 정의
 initial_beta_list = list(
-  c(0.1, 1, 1.5),
+  c(0.1, 1, 5),
   c(0.5, 1 ,2),
   c(0.9, 1, 10)
 )
@@ -46,7 +47,7 @@ for (b_id in seq_along(initial_beta_list)) {
     initial_pi = initial_pi_set / sum(initial_pi_set)
     
     initial_lambda = initial_lambda_func(time_vec, event_vec,
-                                         initial_beta, ratio1 = 0.3, ratio3 = 0.7)
+                                         initial_beta, ratio1 = 0.3, ratio3 = 0.8)
     
     beta_vec = initial_beta
     pi_vec = initial_pi
@@ -64,8 +65,22 @@ for (b_id in seq_along(initial_beta_list)) {
         bp1 = bpBase
         bp3 = bpBase
         
-        new_beta1 = barrier_beta1(candi_before_vec[1], latentZ_mat, bp = bpBase)
-        new_beta3 = barrier_beta3(candi_before_vec[3], latentZ_mat, bp = bpBase)
+        # new_beta1 = barrier_beta1(candi_before_vec[1], latentZ_mat, bp = bpBase)
+        # new_beta3 = barrier_beta3(candi_before_vec[3], latentZ_mat, bp = bpBase)
+        
+        new_beta1 <- tryCatch({
+          barrier_beta1(candi_before_vec[1], latentZ_mat, bp = bpBase)
+        }, error = function(e) {
+          candi_before_vec[1]
+        })
+        
+        # beta3 계산 (에러 발생 시 기존 값 유지)
+        new_beta3 <- tryCatch({
+          barrier_beta3(candi_before_vec[3], latentZ_mat, bp = bpBase)
+        }, error = function(e) {
+          candi_before_vec[3]
+        })
+        
         new_beta = c(new_beta1, 1, new_beta3)
         
         new_lambda = sapply(1:k, function(i)
@@ -127,8 +142,8 @@ for (b_id in seq_along(initial_beta_list)) {
     
     # 결과 저장
     file_tag = paste0("b", b_id, "_p", p_id)
-    # result_Name = paste0("ProposedResult_", dataName, "_", file_tag, ".txt")
-    result_Name = paste0("ProposedResult_noDAEM_", dataName, "_", file_tag, ".txt")
+    result_Name = paste0("ProposedResult_", dataName, "_", file_tag, ".txt")
+    # result_Name = paste0("ProposedResult_noDAEM_", dataName, "_", file_tag, ".txt")
     write.table(theta_df_full, file = result_Name, row.names = FALSE)
     
     cat("Saved to", result_Name, "\n")
@@ -169,12 +184,16 @@ for (file_name in file_list) {
 }
 
 # 정렬된 결과 확인
-result_summary_sorted <- result_summary %>%
-  select(source_file, Iter, beta1, beta3, diffBeta1, diffBeta3, abs_diff_sum) %>%
-  arrange(abs_diff_sum)
+# result_summary_sorted <- result_summary %>%
+#   select(source_file, Iter, beta1, beta3, diffBeta1, diffBeta3, abs_diff_sum) %>%
+#   arrange(abs_diff_sum)
 
 # 출력
-print(result_summary_sorted)
+print(result_summary)
+
+
+write.csv(result_summary,paste0("ProposedSumResult_", dataName, "_.csv"),row.names = F)
+
 
 
 
@@ -186,7 +205,8 @@ print(result_summary_sorted)
 
 
 # 모든 txt 파일 불러오기
-file_list <- list.files(pattern = "^ProposedResult_noDAEM_.*\\.txt$")
+file_pattern <- paste0("^ProposedResult_noDAEM_", dataName, "_.*\\.txt$")
+file_list <- list.files(pattern = file_pattern)
 
 # 결과 저장할 데이터프레임
 result_summary <- data.frame()
@@ -218,6 +238,11 @@ result_summary_sorted <- result_summary %>%
 # 출력
 print(result_summary_sorted)
 
+
+write.csv(result_summary,paste0("NoDAEMSumResult_", dataName, "_.csv"),row.names = F)
+
+
+###### 
 
 read.table("ProposedResult_noDAEM_FRT_censord_b2_p2.txt", header = TRUE) %>% pull(diffBeta1) %>% plot
 read.table("ProposedResult_noDAEM_FRT_censord_b2_p2.txt", header = TRUE) %>% pull(diffBeta3) %>% plot
