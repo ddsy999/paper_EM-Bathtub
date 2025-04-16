@@ -138,3 +138,67 @@ b20 = ggplot(grid_df, aes(x = beta1, y = beta3, z = QvalueBarrier)) +
 
 
 (q20+q90)/(b20+b90)
+
+####################################
+
+# --- 필요한 벡터들: 사용자 제공 ---
+# 예: 10개의 데이터 포인트
+DHIter = 20
+
+latentZ_mat <- result_latentZ_mat[[DHIter]]
+pi_vec <- theta_df_full[DHIter,] %>% select(pi1,pi2,pi3)
+beta_vec = theta_df_full[DHIter,] %>% select(beta1,init_beta2,beta3) %>% as.numeric()
+lambda_vec = theta_df_full[DHIter,] %>% select(lambda1,lambda2,lambda3) %>% as.numeric()
+bpBase = theta_df_full[DHIter,] %>% pull(bpBase)
+bpBase = 1
+theta_df_full[,"lambda1"]
+tail(theta_df_full)
+
+# start_beta1 =  theta_df_full[DHIter-1,] %>% pull(beta1)
+# start_beta3 =  theta_df_full[DHIter-1,] %>% pull(beta3)
+
+start_beta1 =  0.5
+start_beta3 =  2
+
+# --- 사용자 정의 Q 함수 ---
+Qfunc <- function(beta = 1, lambda, latentZ_mat, j = 1) {
+  sum(latentZ_mat[, j] * event_vec * log(lambda)) +
+    sum(latentZ_mat[, j] * event_vec * log(beta)) +
+    sum(latentZ_mat[, j] * event_vec * (beta - 1) * log(time_vec)) -
+    sum(latentZ_mat[, j] * lambda * time_vec^beta) +
+    sum(latentZ_mat[, j] * log(pi_vec[j]))
+}
+
+Qfunc_contour <- function(beta1, beta3, latentZ_mat) {
+  new_beta <- c(beta1, NA, beta3)
+  new_lambda <- sapply(c(1, 3), function(i) {
+    sum(latentZ_mat[, i] * event_vec) / sum(latentZ_mat[, i] * (time_vec^new_beta[i]))
+  })
+  Qfunc(beta1, new_lambda[1], latentZ_mat, j = 1) +
+    Qfunc(beta3, new_lambda[2], latentZ_mat, j = 3)
+}
+
+
+
+latentZ_mat10 = Estep_result(beta_vec,lambda_vec,pi_vec,alpha=1)
+latentZ_mat02 = Estep_result(beta_vec,lambda_vec,pi_vec,alpha=0.2)
+
+
+
+# beta1, beta3 그리드 생성
+beta1_seq <- seq(0.01, 1.5, length.out = 200)
+beta3_seq <- seq(0.01, 6, length.out = 100)
+
+grid_df <- expand.grid(beta1 = beta1_seq, beta3 = beta3_seq)
+
+# Q값 계산
+grid_df$Qvalue <- mapply(function(b1, b3) Qfunc_contour(b1, b3, latentZ_mat),
+                         grid_df$beta1, grid_df$beta3)
+
+grid_df$QvalueBarrier <- mapply(
+  function(b1, b3) Qfunc_contour_with_Barrier(b1, b3, latentZ_mat, bpBase),
+  grid_df$beta1, grid_df$beta3
+)
+
+
+
