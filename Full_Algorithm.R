@@ -1,13 +1,16 @@
 source("DAEM_BarrierMethod_function.R")
 
 # Reading Data
-# file_name = 'Aarest_data.txt'
-file_name = 'FRT_censord.txt'
+file_name = 'Aarest_data.txt'
+# file_name = 'FRT_censord.txt'
 # file_name = 'RearDump.txt'
 # file_name = 'SerumReversal.txt'
 # file_name = 'LFP.txt'
 
-fdata = read.table(file_name,header = T)
+# fdata = read.table(file_name,header = T)
+# fdata = read.table(file_name)
+fdata <- read.delim(file_name, header = TRUE, quote = "\"")
+
 dataName = tools::file_path_sans_ext(file_name)
 
 # Data preprocessing
@@ -134,7 +137,7 @@ for( ITerAnneal in 1:maxIterAnnealing){
 
 }
 
-theta_df_full %>% tail
+theta_df_full %>% tail(30)
 plot(theta_df_full$diffBeta3)
 
 result_Name = paste0("Proposed_Result","_",dataName,".txt")

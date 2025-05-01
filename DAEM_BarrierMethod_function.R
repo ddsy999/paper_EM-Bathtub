@@ -11,7 +11,7 @@ library(scales)
 library(foreach)
 library(doParallel)
 library(rootSolve)
-
+library(tidyr)
 
 
 ####### Denote function ####
@@ -124,6 +124,9 @@ Estep_result2 = function(beta,lambda,pi_vec,alpha=1){
              V2=wpdf2/sumWeibull)
              # V3=wpdf3/sumWeibull)
 }
+
+
+
 
 
 
@@ -352,6 +355,46 @@ initial_lambda_func2 = function(time_vec,event_vec,beta_vec,ratio1=0.2,ratio3=0.
 
 
 
+initial_lambda_func3 = function(time_vec,event_vec,beta_vec,ratio1=0.2,ratio3=0.9){
+  surv_obj <- Surv(time = time_vec, event = event_vec)
+  fit <- survfit(surv_obj ~ 1)
+  
+  # 시간과 누적 생존율
+  times <- fit$time
+  surv_probs <- fit$surv
+  
+  # 누적 hazard (대략적 추정)
+  cumhaz <- -log(surv_probs)
+  
+  # 시간 구간별 변화량
+  delta_time <- diff(c(0, times))
+  delta_hazard <- diff(c(0, cumhaz))
+  hazard_rate <- delta_hazard / delta_time
+  
+  df_haz = data.frame(time=unique(time_vec),hazard=hazard_rate,
+                      # time1= beta_vec[1] * unique(time_vec)^(beta_vec[1] - 1)
+                      time3= beta_vec[2] * unique(time_vec)^(beta_vec[2] - 1)
+  )
+  df_haz[(nrow(df_haz)),"hazard"] = df_haz[(nrow(df_haz)-1),"hazard"]
+  n = nrow(df_haz)  
+  
+  # subset_df1 = df_haz %>% filter(time<max(times)*ratio1)
+  subset_df3 = df_haz %>% filter(time>max(times)*ratio3)
+  subset_df2 = df_haz %>% filter(time<max(times)*ratio3)
+  # fit1 <- lm(hazard ~ 0 + time1, data = subset_df1)  # '0 +'는 intercept 제외
+  fit3 <- lm(hazard ~ 0 + time3, data = subset_df3)  # '0 +'는 intercept 제외
+  
+  # 결과 확인
+  # lambda_est1 <- coef(fit1)[1]
+  lambda_est2 = mean(subset_df2[,"hazard"])
+  lambda_est3 =coef(fit3)[1]
+  # lambda_vec = c(lambda_est1,lambda_est2,lambda_est3)
+  # lambda_vec = c(lambda_est1,lambda_est2)
+  lambda_vec = c(lambda_est2,lambda_est3)
+  return(lambda_vec)
+}
+
+
 find_last_stable_index <- function(vec, c) {
   # 변화량 계산 (길이 n-1)
   delta <- abs(diff(vec))
@@ -407,6 +450,29 @@ printResult2 = function(){
   print(paste0("Lambda2 diff : " , diffL(beta_vec[2],lambda_vec[2],latentZ_mat,j=2) %>% abs))
   print(paste0(c("Beta1 at 1 is minus :",diffB_onlyB(1,latentZ_mat,j=1)<0,diffB_onlyB(1,latentZ_mat,j=1)) ,collapse = " / "))
   # print(paste0(c("Beta1 at 3 is positive :",diffB_onlyB(1,latentZ_mat,j=3)>0,diffB_onlyB(1,latentZ_mat,j=3)) ,collapse = " / "))
+  # print(paste0(" data save : ", nrow(theta_df)))
+  print(paste0(" bpBase : ", bpBase ))
+  print(paste0(" Init Beta : ",initial_beta))
+  print(paste0(" Init Pi : ", initial_pi ))
+  # print(paste0(" bp1 , bp3 : ", bp1 , "/", bp3 ))
+  # print(paste0(" betaTot : ", betaTot )) 
+  print("#####################################################################################################################")
+}
+
+
+
+printResult3 = function(){
+  print("#####################################################################################################################")
+  print( paste0( "EM iteration : " ,ITerAnneal ," / " , iter ))
+  print( paste0( "Annealing : " ,annealingPara))
+  print(paste0(c("pi_vec : " , sapply(pi_vec , function(i) round(i,2))),collapse = " / "))
+  print(paste0(c("Lambda : " , sapply(lambda_vec , function(i) round(i,4))),collapse = " / "))
+  print(paste0(c("Beta :",sapply(beta_vec , function(i) round(i,4))) ,collapse = " / "))
+  print(paste0("Beta1 diff : " , diffB_onlyB(beta_vec[1],latentZ_mat,j=1) %>% abs))
+  print(paste0("Beta3 diff : " , diffB_onlyB(beta_vec[2],latentZ_mat,j=2) %>% abs))
+  print(paste0("Lambda3 diff : " , diffL(beta_vec[2],lambda_vec[2],latentZ_mat,j=2) %>% abs))
+  print(paste0(c("Beta1 at 1 is minus :",diffB_onlyB(1,latentZ_mat,j=1)<0,diffB_onlyB(1,latentZ_mat,j=1)) ,collapse = " / "))
+  print(paste0(c("Beta1 at 3 is positive :",diffB_onlyB(1,latentZ_mat,j=2)>0,diffB_onlyB(1,latentZ_mat,j=2)) ,collapse = " / "))
   # print(paste0(" data save : ", nrow(theta_df)))
   print(paste0(" bpBase : ", bpBase ))
   print(paste0(" Init Beta : ",initial_beta))
