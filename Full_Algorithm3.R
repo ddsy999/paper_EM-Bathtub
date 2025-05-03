@@ -1,24 +1,43 @@
 
-
+source("DAEM_BarrierMethod_function.R")
 library(muhaz)
 library(ggplot2)
 library(dplyr)
 
 # 1. 혼합 비율 및 분포 설정
-pi_exp <- runif(1, 0.6, 0.8)
+# pi_exp <- runif(1, 0.5, 0.8)
+pi_exp <- 0.8
 pi_weib <- 1 - pi_exp
 N <- 100
 n_exp <- round(N * pi_exp)
 n_weib <- N - n_exp
 
-# Exponential 고장시간 생성
-lambda_exp <- 1
-t_exp <- rexp(n_exp, rate = lambda_exp)
 
 # Weibull 고장시간 생성
-shape_w <- 4
-scale_w <-0.5
-t_weib <- rweibull(n_weib, shape = shape_w, scale = scale_w)
+shape_w <- 4.10481*(1+0.1*runif(1,0,1))
+scale_w <- 0.005109904*(1+0.1*runif(1,0,1))
+lambda_w = 5.10733273080284e-11*(1+0.1*runif(1,0,1))
+
+
+# lambda = (1/scale)^(-shape)
+# exp(log(lambda)/(shape))=scale
+# exp(log(5.10733273080284e-11)/(4.10481337800991))
+# exp(log(5.10733273080284e-11)/-4.10481337800991)
+# exp(log(lambda)/-shape_w) = scale_w
+t_weib <- rweibull(n_weib, shape = shape_w, scale = 1/scale_w)
+mean_weib <- scale_w * gamma(1 + 1 / shape_w)
+
+# Exponential 고장시간 생성
+lambda_exp <- 0.001551530363319033*(1+0.1*runif(1,0,1))
+t_exp <- rexp(n_exp, rate = lambda_exp)
+mean_exp = 1/lambda_exp
+
+
+c(mean_exp,mean_weib)
+mode_weib
+
+
+trueDF = data.frame(beta2=1,lambda2=lambda_exp,beta3=shape_w,lambda3=lambda_w,pi2=pi_exp,pi3=pi_weib)
 
 # 결합된 고장시간 데이터
 failure_times <- c(t_exp, t_weib)
@@ -26,29 +45,44 @@ min_time <- min(failure_times)
 max_time <- max(failure_times)
 
 
-df = data.frame(time = c(t_exp,t_weib) , model=rep(c("Exponential", "Weibull"), times = c(length(t_exp),length(t_weib))))
-
-# 2. muhaz로 추정
-haz_exp <- muhaz(df$time[df$model == "Exponential"])
-haz_weib <- muhaz(df$time[df$model == "Weibull"])
-haz_all <- muhaz(df$time)
-
-# 3. data.frame으로 변환
-df_exp <- data.frame(time = haz_exp$est.grid, hazard = haz_exp$haz.est, model = "Exponential")
-df_weib <- data.frame(time = haz_weib$est.grid, hazard = haz_weib$haz.est, model = "Weibull")
-df_all <- data.frame(time = haz_all$est.grid, hazard = haz_all$haz.est, model = "All")
-
-# 4. 결합
-df_hazards <- bind_rows(df_exp, df_weib, df_all)
-
-# 5. ggplot 시각화
-ggplot(df_hazards, aes(x = time, y = hazard, color = model)) +
-  geom_line(size = 1.2) +
-  labs(title = "Empirical Hazard Functions (muhaz)",
-       x = "Time", y = "Estimated Hazard Rate") +
-  theme_minimal()
+DBbound3 = DecisionBoundary(seq(min_time, max_time, length.out = 500),beta_vec = c(1,1,shape_w),
+                            lambda_vec = c(1,lambda_exp,lambda_w),pi_vec=c(1,pi_exp,pi_weib),j=3)
+changePoint3 = seq(min_time, max_time, length.out = 500)[which.min(DBbound3<1)]
+changePoint3
 
 
+df = data.frame(time = c(t_exp,t_weib) , model=rep(c("Exponential", "Weibull"), times = c(length(t_exp),length(t_weib)))) 
+df = df  %>% arrange(time)
+df = df %>% filter(time<300)
+
+###############
+
+
+surv_obj <- Surv(time = df$time, event = rep(1,nrow(df)))
+fit <- survfit(surv_obj ~ 1)
+
+# 시간과 누적 생존율
+times <- fit$time
+surv_probs <- fit$surv
+
+# 누적 hazard (대략적 추정)
+cumhaz <- -log(surv_probs)
+
+# 시간 구간별 변화량
+delta_time <- diff(c(0, times))
+delta_hazard <- diff(c(0, cumhaz))
+hazard_rate <- delta_hazard / delta_time
+
+hazard_df <- data.frame(
+  time = times,
+  hazard = hazard_rate
+)
+
+# 시각화 예시
+ggplot(hazard_df, aes(x = time, y = hazard)) +
+  geom_line() +
+  labs(title = "Estimated hazard rate", x = "Time", y = "Hazard")
+###############
 
 
 # 2. 시간축: 실제 데이터 범위 기반
@@ -66,22 +100,13 @@ S_weib <- exp(-(t_grid / scale_w)^shape_w)
 h_weib <- (shape_w / scale_w) * (t_grid / scale_w)^(shape_w - 1)
 
 df_t_grid = data.frame(time=t_grid ,h_exp, h_weib) 
-df_t_grid %>% ggplot(aes(x=t_grid,h_exp))+geom_line()+geom_line(aes(x=t_grid,y=h_weib))
-
-time_criterion = t_grid[which((h_exp/h_weib<1))[1]]<max_time*0.8 & t_grid[which((h_exp/h_weib<1))[1]]>max_time*0.3
-isTRUE(time_criterion)
-
-truePara = c(lambda_exp,shape_w,scale_w^(-shape_w),pi_exp,pi_weib,t_grid[which((h_exp/h_weib<1))[1]])
-names(truePara) = c("lambda_exp","shape_w","scale_w^(-shape_w)","pi_exp","pi_weib","changePoint")
-
-truePara %>% round(3)
-
 
 ################################
-source("DAEM_BarrierMethod_function.R")
+
 
 # fdata = df %>% mutate(event = ifelse(time>max_time*0.9,0,1)) %>% mutate(time=ifelse(event==1,time,max_time*0.9)) %>% arrange(time)
-fdata = df %>% mutate(event = 1) %>% arrange(time)
+fdata = df  %>% arrange(time)
+fdata$event = 1
 
 dataName = "simul"
 # Data preprocessing
@@ -90,30 +115,78 @@ k=2
 event_vec = as.numeric(fdata$event)
 time_vec = as.numeric(fdata$time)
 
+###### TTT 
+
+# 고장 데이터만 정렬
+failures <- sort(fdata$time[fdata$event == 1])
+n <- length(failures)
+T_total <- sum(failures)
+
+# TTT 좌표 계산
+x_vals <- (1:n) / n
+y_vals <- sapply(1:n, function(i) {
+  (sum(failures[1:i]) + (n - i) * failures[i]) / T_total
+})
+
+ttt_df <- data.frame(x = x_vals, y = y_vals)
+
+# TTT plot
+TTT2=ggplot(ttt_df, aes(x = x, y = y)) +
+  geom_step(direction = "hv") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50") +
+  labs(
+    title = "Device G",
+    x = "Proportion of Failures (i/n)",
+    y = "TTT Transform"
+  ) +
+  theme_minimal()
+
+TTT2+df %>% ggplot(aes(x=time,y=hazard_rate))+geom_point()+df_t_grid %>% ggplot(aes(x=t_grid,h_exp))+geom_line()+geom_line(aes(x=t_grid,y=h_weib),color="red")
+
+
+
+
+#######################
+
 tot=1e-9
 maxEMIter=1e+5
 maxIterAnnealing = 100
 
 annealingSchedule = seq(0.1,0.999999999,length.out=maxIterAnnealing) 
-bpBaseSchedule =exp(seq(log(1e+2), log(1e+4), length.out = maxIterAnnealing))
+bpBaseSchedule =exp(seq(log(1e-2), log(1e+4), length.out = maxIterAnnealing))
 
 ## result 기록 
 theta_df_full = NULL
 result_latentZ_mat = NULL
 ## initial Parameter : beta , lambda , pi
-initial_beta = c(1,10)
+initial_beta = c(1,5)
 initial_pi_set = c(1,1)
 initial_pi = initial_pi_set / sum(initial_pi_set)
 
 initial_lambda = initial_lambda_func3(time_vec,event_vec,
-                                      initial_beta,ratio3=0.7)
+                                      initial_beta,ratio3=0.8)
+
+initial_lambda = c(0.0101530363319033,5.10733273080284e-11)
+
+
+
+initial_lambda = c(1e-34,1e-40)
+# initial_lambda = c(2.096286 ,9.332562e-12)
 
 
 ## setting parameter
 beta_vec = initial_beta
 pi_vec = initial_pi
 lambda_vec = initial_lambda
-latentZ_mat = Estep_result2(beta_vec,lambda_vec,pi_vec,alpha=1)
+latentZ_mat = Estep_result2(beta_vec,lambda_vec,pi_vec,alpha=0.1)
+
+latentZ_mat %>% round(5)
+
+
+print(paste0(c("Beta1 at 1 is minus :",diffB_onlyB(1,latentZ_mat,j=1)<0,diffB_onlyB(1,latentZ_mat,j=1)) ,collapse = " / "))
+print(paste0(c("Beta3 at 1 is positive :",diffB_onlyB(1,latentZ_mat,j=2)>0,diffB_onlyB(1,latentZ_mat,j=2)) ,collapse = " / "))
+
+
 
 
 for( ITerAnneal in 1:maxIterAnnealing){
@@ -135,8 +208,8 @@ for( ITerAnneal in 1:maxIterAnnealing){
     bp3 = bpBase
     
     # new_beta1 = barrier_beta1(candi_before_vec[1],latentZ_mat,bp=bpBase)
-    new_beta3 = barrier_beta3(candi_before_vec[2],cbind(0,latentZ_mat),bp=bpBase)
-    
+    new_beta3 = barrier_beta3(candi_before_vec[2],latentZ_mat=cbind(0,latentZ_mat),bp=bpBase)
+    # print(new_beta3)
     #### Update Parameter ####
     new_beta = c(1,new_beta3)
     new_lambda = sapply(1:k , function(i)  sum(latentZ_mat[,i]*event_vec)/sum(latentZ_mat[,i]*(time_vec^new_beta[i])))
@@ -198,6 +271,12 @@ for( ITerAnneal in 1:maxIterAnnealing){
 }
 
 
-theta_df_full$diffBeta1+theta_df_full$diffBeta2
-truePara
+plot(theta_df_full$diffBeta3 %>% abs)
 
+theta_df_full[which.min(theta_df_full$diffBeta3 %>% abs),]
+trueDF
+
+
+
+
+# df %>% ggplot(aes(x=time,y=hazard_rate))+geom_point()

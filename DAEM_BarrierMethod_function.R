@@ -472,7 +472,7 @@ printResult3 = function(){
   print(paste0("Beta3 diff : " , diffB_onlyB(beta_vec[2],latentZ_mat,j=2) %>% abs))
   print(paste0("Lambda3 diff : " , diffL(beta_vec[2],lambda_vec[2],latentZ_mat,j=2) %>% abs))
   print(paste0(c("Beta1 at 1 is minus :",diffB_onlyB(1,latentZ_mat,j=1)<0,diffB_onlyB(1,latentZ_mat,j=1)) ,collapse = " / "))
-  print(paste0(c("Beta1 at 3 is positive :",diffB_onlyB(1,latentZ_mat,j=2)>0,diffB_onlyB(1,latentZ_mat,j=2)) ,collapse = " / "))
+  print(paste0(c("Beta3 at 1 is positive :",diffB_onlyB(1,latentZ_mat,j=2)>0,diffB_onlyB(1,latentZ_mat,j=2)) ,collapse = " / "))
   # print(paste0(" data save : ", nrow(theta_df)))
   print(paste0(" bpBase : ", bpBase ))
   print(paste0(" Init Beta : ",initial_beta))
