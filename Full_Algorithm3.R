@@ -5,8 +5,7 @@ library(ggplot2)
 library(dplyr)
 
 # 1. 혼합 비율 및 분포 설정
-# pi_exp <- runif(1, 0.5, 0.8)
-pi_exp <- 0.8
+pi_exp <- runif(1, 0.8, 0.9)
 pi_weib <- 1 - pi_exp
 N <- 100
 n_exp <- round(N * pi_exp)
@@ -14,30 +13,18 @@ n_weib <- N - n_exp
 
 
 # Weibull 고장시간 생성
-shape_w <- 4.10481*(1+0.1*runif(1,0,1))
-scale_w <- 0.005109904*(1+0.1*runif(1,0,1))
-lambda_w = 5.10733273080284e-11*(1+0.1*runif(1,0,1))
-
-
-# lambda = (1/scale)^(-shape)
-# exp(log(lambda)/(shape))=scale
-# exp(log(5.10733273080284e-11)/(4.10481337800991))
-# exp(log(5.10733273080284e-11)/-4.10481337800991)
-# exp(log(lambda)/-shape_w) = scale_w
-t_weib <- rweibull(n_weib, shape = shape_w, scale = 1/scale_w)
+shape_w <- 10*(1+0.1*runif(1,0,1))
+scale_w <- 50*(1+0.3*runif(1,0,1))
+lambda_w = scale_w^(-shape_w)
+t_weib <- rweibull(n_weib, shape = shape_w, scale = scale_w)
 mean_weib <- scale_w * gamma(1 + 1 / shape_w)
+mode_weib = scale_w * ((shape_w - 1) / shape_w)^(1 / shape_w)
 
 # Exponential 고장시간 생성
-lambda_exp <- 0.001551530363319033*(1+0.1*runif(1,0,1))
+lambda_exp <- (1/(mean_weib*10))*(1+0.05*runif(1,0,1))
 t_exp <- rexp(n_exp, rate = lambda_exp)
 mean_exp = 1/lambda_exp
 
-
-c(mean_exp,mean_weib)
-mode_weib
-
-
-trueDF = data.frame(beta2=1,lambda2=lambda_exp,beta3=shape_w,lambda3=lambda_w,pi2=pi_exp,pi3=pi_weib)
 
 # 결합된 고장시간 데이터
 failure_times <- c(t_exp, t_weib)
@@ -51,13 +38,19 @@ changePoint3 = seq(min_time, max_time, length.out = 500)[which.min(DBbound3<1)]
 changePoint3
 
 
-df = data.frame(time = c(t_exp,t_weib) , model=rep(c("Exponential", "Weibull"), times = c(length(t_exp),length(t_weib)))) 
-df = df  %>% arrange(time)
-df = df %>% filter(time<300)
+df = data.frame(time = c(t_exp,t_weib) , model=rep(c("Exponential", "Weibull"), times = c(length(t_exp),length(t_weib))))
+df = df %>% filter(time<mode_weib*0.9)
+
+
+
+trueDF = data.frame(beta2=1,beta3=shape_w ,
+                    lambda1=lambda_exp, lambda3=lambda_w,
+                    pi2=pi_exp,pi3=pi_weib
+)
+
+
 
 ###############
-
-
 surv_obj <- Surv(time = df$time, event = rep(1,nrow(df)))
 fit <- survfit(surv_obj ~ 1)
 
@@ -73,15 +66,7 @@ delta_time <- diff(c(0, times))
 delta_hazard <- diff(c(0, cumhaz))
 hazard_rate <- delta_hazard / delta_time
 
-hazard_df <- data.frame(
-  time = times,
-  hazard = hazard_rate
-)
-
-# 시각화 예시
-ggplot(hazard_df, aes(x = time, y = hazard)) +
-  geom_line() +
-  labs(title = "Estimated hazard rate", x = "Time", y = "Hazard")
+df$hazard_rate= hazard_rate 
 ###############
 
 
@@ -105,8 +90,7 @@ df_t_grid = data.frame(time=t_grid ,h_exp, h_weib)
 
 
 # fdata = df %>% mutate(event = ifelse(time>max_time*0.9,0,1)) %>% mutate(time=ifelse(event==1,time,max_time*0.9)) %>% arrange(time)
-fdata = df  %>% arrange(time)
-fdata$event = 1
+fdata = df %>% mutate(event = ifelse(time<mean_weib,1,0)) %>% arrange(time)
 
 dataName = "simul"
 # Data preprocessing
@@ -143,6 +127,8 @@ TTT2=ggplot(ttt_df, aes(x = x, y = y)) +
 
 TTT2+df %>% ggplot(aes(x=time,y=hazard_rate))+geom_point()+df_t_grid %>% ggplot(aes(x=t_grid,h_exp))+geom_line()+geom_line(aes(x=t_grid,y=h_weib),color="red")
 
+c(mean_exp,mean_weib)
+mode_weib
 
 
 
@@ -153,24 +139,24 @@ maxEMIter=1e+5
 maxIterAnnealing = 100
 
 annealingSchedule = seq(0.1,0.999999999,length.out=maxIterAnnealing) 
-bpBaseSchedule =exp(seq(log(1e-2), log(1e+4), length.out = maxIterAnnealing))
+bpBaseSchedule =exp(seq(log(1e+1), log(1e+7), length.out = maxIterAnnealing))
 
 ## result 기록 
 theta_df_full = NULL
 result_latentZ_mat = NULL
 ## initial Parameter : beta , lambda , pi
-initial_beta = c(1,5)
+initial_beta = c(1,30)
 initial_pi_set = c(1,1)
 initial_pi = initial_pi_set / sum(initial_pi_set)
 
 initial_lambda = initial_lambda_func3(time_vec,event_vec,
-                                      initial_beta,ratio3=0.8)
+                                      initial_beta,ratio3=0.5)
 
-initial_lambda = c(0.0101530363319033,5.10733273080284e-11)
+# initial_lambda = c(0.0101530363319033,5.10733273080284e-11)
+# 
 
 
-
-initial_lambda = c(1e-34,1e-40)
+# initial_lambda = c(1e-34,1e-40)
 # initial_lambda = c(2.096286 ,9.332562e-12)
 
 
@@ -273,10 +259,14 @@ for( ITerAnneal in 1:maxIterAnnealing){
 
 plot(theta_df_full$diffBeta3 %>% abs)
 
-theta_df_full[which.min(theta_df_full$diffBeta3 %>% abs),]
+optData = theta_df_full[which.min(theta_df_full$diffBeta3 %>% abs),]
+optData
 trueDF
 
 
+df$hz2 = hazardrate(df$time,1,optData$lambda1)
+df$hz3 = hazardrate(df$time,optData$beta3,optData$lambda3)
 
+df %>% ggplot(aes(x=time,y=hazard_rate))+geom_point()+
+  geom_line(aes(y=hz2),color="blue")+geom_line(aes(y=hz3),color="red")
 
-# df %>% ggplot(aes(x=time,y=hazard_rate))+geom_point()
