@@ -5,23 +5,72 @@ library(ggplot2)
 library(dplyr)
 
 # 1. 혼합 비율 및 분포 설정
-pi_exp <- runif(1, 0.8, 0.9)
+pi_exp <- runif(1, 0.4, 0.6)
 pi_weib <- 1 - pi_exp
 N <- 100
 n_exp <- round(N * pi_exp)
 n_weib <- N - n_exp
 
 
+
+
+
+target_mode <- 320
+target_var <- 3500
+
+loss_fn <- function(par) {
+  shape <- par[1]
+  scale <- par[2]
+  
+  if (shape <= 1 || scale <= 0) return(1e6)  # mode가 존재하려면 shape > 1
+  
+  mode <- scale * ((shape - 1) / shape)^(1 / shape)
+  var <- scale^2 * (gamma(1 + 2 / shape) - gamma(1 + 1 / shape)^2)
+  
+  (mode - target_mode)^2 + (var - target_var)^2
+}
+
+# 초기값
+res <- optim(c(2, 200), loss_fn, method = "L-BFGS-B", lower = c(1.01, 0.1))
+
+shape_w <- res$par[1]
+scale_w <- res$par[2]
+
+# 확인
+mode_weib <- scale_w * ((shape_w - 1) / shape_w)^(1 / shape_w)
+var_weib <- scale_w^2 * (gamma(1 + 2 / shape_w) - gamma(1 + 1 / shape_w)^2)
+
+cat("shape_w =", shape_w, "\nscale_w =", scale_w, "\n")
+cat("mode =", mode_weib, "\nvariance =", var_weib, "\n")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Weibull 고장시간 생성
-shape_w <- 10*(1+0.1*runif(1,0,1))
-scale_w <- 50*(1+0.3*runif(1,0,1))
+# shape_w <- 35.0267 #30*(1+0.1*runif(1,0,1))
+# scale_w <- 228.9428  #5*(1+0.3*runif(1,0,1))
 lambda_w = scale_w^(-shape_w)
 t_weib <- rweibull(n_weib, shape = shape_w, scale = scale_w)
 mean_weib <- scale_w * gamma(1 + 1 / shape_w)
 mode_weib = scale_w * ((shape_w - 1) / shape_w)^(1 / shape_w)
+var_weib <- scale_w^2 * (gamma(1 + 2 / shape_w) - (gamma(1 + 1 / shape_w))^2)
+
 
 # Exponential 고장시간 생성
-lambda_exp <- (1/(mean_weib*10))*(1+0.05*runif(1,0,1))
+lambda_exp <- (1/(600))*(1+0.05*runif(1,0,1))
 t_exp <- rexp(n_exp, rate = lambda_exp)
 mean_exp = 1/lambda_exp
 
@@ -35,13 +84,11 @@ max_time <- max(failure_times)
 DBbound3 = DecisionBoundary(seq(min_time, max_time, length.out = 500),beta_vec = c(1,1,shape_w),
                             lambda_vec = c(1,lambda_exp,lambda_w),pi_vec=c(1,pi_exp,pi_weib),j=3)
 changePoint3 = seq(min_time, max_time, length.out = 500)[which.min(DBbound3<1)]
-changePoint3
+
 
 
 df = data.frame(time = c(t_exp,t_weib) , model=rep(c("Exponential", "Weibull"), times = c(length(t_exp),length(t_weib))))
-df = df %>% filter(time<mode_weib*0.9)
-
-
+df = df %>% filter(time<300)
 
 trueDF = data.frame(beta2=1,beta3=shape_w ,
                     lambda1=lambda_exp, lambda3=lambda_w,
@@ -51,7 +98,8 @@ trueDF = data.frame(beta2=1,beta3=shape_w ,
 
 
 ###############
-surv_obj <- Surv(time = df$time, event = rep(1,nrow(df)))
+df = df %>% mutate(event = ifelse(time<mode_weib,1,0)) 
+surv_obj <- Surv(time = df$time, event = df$event)
 fit <- survfit(surv_obj ~ 1)
 
 # 시간과 누적 생존율
@@ -90,7 +138,8 @@ df_t_grid = data.frame(time=t_grid ,h_exp, h_weib)
 
 
 # fdata = df %>% mutate(event = ifelse(time>max_time*0.9,0,1)) %>% mutate(time=ifelse(event==1,time,max_time*0.9)) %>% arrange(time)
-fdata = df %>% mutate(event = ifelse(time<mean_weib,1,0)) %>% arrange(time)
+
+fdata = df %>% arrange(time)
 
 dataName = "simul"
 # Data preprocessing
@@ -125,10 +174,15 @@ TTT2=ggplot(ttt_df, aes(x = x, y = y)) +
   ) +
   theme_minimal()
 
-TTT2+df %>% ggplot(aes(x=time,y=hazard_rate))+geom_point()+df_t_grid %>% ggplot(aes(x=t_grid,h_exp))+geom_line()+geom_line(aes(x=t_grid,y=h_weib),color="red")
+TTT2+df %>% ggplot(aes(x=time,y=hazard_rate,color=model))+geom_point()+df_t_grid %>% ggplot(aes(x=t_grid,h_exp))+geom_line()+geom_line(aes(x=t_grid,y=h_weib),color="red")
 
 c(mean_exp,mean_weib)
 mode_weib
+var_weib
+changePoint3
+
+
+
 
 
 
