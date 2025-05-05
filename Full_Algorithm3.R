@@ -1,143 +1,83 @@
 
 source("DAEM_BarrierMethod_function.R")
-library(muhaz)
-library(ggplot2)
+
+library(fitdistrplus)
 library(dplyr)
-
-# 1. 혼합 비율 및 분포 설정
-pi_exp <- runif(1, 0.4, 0.6)
-pi_weib <- 1 - pi_exp
-N <- 100
-n_exp <- round(N * pi_exp)
-n_weib <- N - n_exp
-
-
-
-
-
-target_mode <- 320
-target_var <- 3500
-
-loss_fn <- function(par) {
-  shape <- par[1]
-  scale <- par[2]
-  
-  if (shape <= 1 || scale <= 0) return(1e6)  # mode가 존재하려면 shape > 1
-  
-  mode <- scale * ((shape - 1) / shape)^(1 / shape)
-  var <- scale^2 * (gamma(1 + 2 / shape) - gamma(1 + 1 / shape)^2)
-  
-  (mode - target_mode)^2 + (var - target_var)^2
-}
-
-# 초기값
-res <- optim(c(2, 200), loss_fn, method = "L-BFGS-B", lower = c(1.01, 0.1))
-
-shape_w <- res$par[1]
-scale_w <- res$par[2]
-
-# 확인
-mode_weib <- scale_w * ((shape_w - 1) / shape_w)^(1 / shape_w)
-var_weib <- scale_w^2 * (gamma(1 + 2 / shape_w) - gamma(1 + 1 / shape_w)^2)
-
-cat("shape_w =", shape_w, "\nscale_w =", scale_w, "\n")
-cat("mode =", mode_weib, "\nvariance =", var_weib, "\n")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Weibull 고장시간 생성
-# shape_w <- 35.0267 #30*(1+0.1*runif(1,0,1))
-# scale_w <- 228.9428  #5*(1+0.3*runif(1,0,1))
+n_total = 50
+n_const_prop = 0.8
+n_wear_prop = 0.2
+n_const <- n_total*n_const_prop
+n_wear <- n_total*n_wear_prop
+shape_w = 40
+scale_w = 600
 lambda_w = scale_w^(-shape_w)
-t_weib <- rweibull(n_weib, shape = shape_w, scale = scale_w)
-mean_weib <- scale_w * gamma(1 + 1 / shape_w)
-mode_weib = scale_w * ((shape_w - 1) / shape_w)^(1 / shape_w)
-var_weib <- scale_w^2 * (gamma(1 + 2 / shape_w) - (gamma(1 + 1 / shape_w))^2)
+lambda_e = 80
+time <- c(rweibull(n_const, shape = 1, scale = lambda_e),
+          rweibull(n_wear, shape = shape_w, scale = scale_w))
+event <- rep(1, length(time))
+df <- data.frame(time = time, event = event)
+df$distn = c(rep("exp",n_const),rep("wear",n_wear))
+df = df %>% arrange(time)
+# 2. Weibull 분포 적합 (MLE 추정)
+fit <- fitdist(df$time, "weibull")
+shape_hat <- fit$estimate["shape"]
+scale_hat <- fit$estimate["scale"]
 
 
-# Exponential 고장시간 생성
-lambda_exp <- (1/(600))*(1+0.05*runif(1,0,1))
-t_exp <- rexp(n_exp, rate = lambda_exp)
-mean_exp = 1/lambda_exp
+# # Kaplan-Meier 적합
+# 2. Kaplan-Meier 적합
+km_fit <- survfit(Surv(time, event) ~ 1, data = df)
 
+# 3. KM 기반 hazard 계산 (사건 발생 시점에 대해서만)
+hazard_df <- data.frame(
+  time = km_fit$time,
+  n_risk = km_fit$n.risk,
+  n_event = km_fit$n.event
+) %>%
+  mutate(hazard_km = n_event / n_risk)
 
-# 결합된 고장시간 데이터
-failure_times <- c(t_exp, t_weib)
-min_time <- min(failure_times)
-max_time <- max(failure_times)
-
-
-DBbound3 = DecisionBoundary(seq(min_time, max_time, length.out = 500),beta_vec = c(1,1,shape_w),
-                            lambda_vec = c(1,lambda_exp,lambda_w),pi_vec=c(1,pi_exp,pi_weib),j=3)
-changePoint3 = seq(min_time, max_time, length.out = 500)[which.min(DBbound3<1)]
-
-
-
-df = data.frame(time = c(t_exp,t_weib) , model=rep(c("Exponential", "Weibull"), times = c(length(t_exp),length(t_weib))))
-df = df %>% filter(time<300)
-
-trueDF = data.frame(beta2=1,beta3=shape_w ,
-                    lambda1=lambda_exp, lambda3=lambda_w,
-                    pi2=pi_exp,pi3=pi_weib
-)
+df$hazard = hazard_df$hazard_km
+# 
+# df <- df %>%
+#   rowwise() %>%
+#   mutate(
+#     hazard = {
+#       idx <- max(which(time >= hazard_df$time))
+#       if (length(idx) == 0 || is.infinite(idx)) NA else hazard_df$hazard[idx]
+#     }
+#   )
 
 
 
-###############
-df = df %>% mutate(event = ifelse(time<mode_weib,1,0)) 
-surv_obj <- Surv(time = df$time, event = df$event)
-fit <- survfit(surv_obj ~ 1)
+# 3. 분포 기반 hazard function 계산
+# Weibull의 hazard: h(t) = (β/λ) * (t/λ)^(β-1)
+# 2. Weibull 분포 적합 (MLE 추정)
+# fit <- fitdist(df$time, "weibull")
+# shape_hat <- fit$estimate["shape"]
+# scale_hat <- fit$estimate["scale"]
 
-# 시간과 누적 생존율
-times <- fit$time
-surv_probs <- fit$surv
-
-# 누적 hazard (대략적 추정)
-cumhaz <- -log(surv_probs)
-
-# 시간 구간별 변화량
-delta_time <- diff(c(0, times))
-delta_hazard <- diff(c(0, cumhaz))
-hazard_rate <- delta_hazard / delta_time
-
-df$hazard_rate= hazard_rate 
-###############
+# 3. 분포 기반 hazard function 계산
+# Weibull의 hazard: h(t) = (β/λ) * (t/λ)^(β-1)
+# df <- df %>%
+#   mutate(
+#     weibull_fit = (shape_hat / scale_hat) * (time / scale_hat)^(shape_hat - 1)
+#   )
 
 
-# 2. 시간축: 실제 데이터 범위 기반
-t_grid <- seq(min_time, max_time, length.out = 500)
+# hazard point plot
+ggplot(df, aes(x = time, y = hazard ,color=distn )) +
+  geom_point() +
+  geom_line(color = "blue") +
+  labs(title = "Empirical Hazard Rate (전체 데이터)",
+       x = "Time",
+       y = "Hazard Rate") +
+  theme_minimal()
 
-# 3. 이론적 hazard 계산
-# Exponential
-f_exp <- lambda_exp * exp(-lambda_exp * t_grid)
-S_exp <- exp(-lambda_exp * t_grid)
-h_exp <- rep(lambda_exp, length(t_grid))
-
-# Weibull
-f_weib <- (shape_w / scale_w) * (t_grid / scale_w)^(shape_w - 1) * exp(-(t_grid / scale_w)^shape_w)
-S_weib <- exp(-(t_grid / scale_w)^shape_w)
-h_weib <- (shape_w / scale_w) * (t_grid / scale_w)^(shape_w - 1)
-
-df_t_grid = data.frame(time=t_grid ,h_exp, h_weib) 
-
-################################
+# ggplot(df, aes(x = time, y = weibull_fit )) +
+#   geom_point() +
+#   geom_line(color = "blue")
 
 
-# fdata = df %>% mutate(event = ifelse(time>max_time*0.9,0,1)) %>% mutate(time=ifelse(event==1,time,max_time*0.9)) %>% arrange(time)
 
 fdata = df %>% arrange(time)
 
@@ -148,41 +88,8 @@ k=2
 event_vec = as.numeric(fdata$event)
 time_vec = as.numeric(fdata$time)
 
-###### TTT 
 
-# 고장 데이터만 정렬
-failures <- sort(fdata$time[fdata$event == 1])
-n <- length(failures)
-T_total <- sum(failures)
-
-# TTT 좌표 계산
-x_vals <- (1:n) / n
-y_vals <- sapply(1:n, function(i) {
-  (sum(failures[1:i]) + (n - i) * failures[i]) / T_total
-})
-
-ttt_df <- data.frame(x = x_vals, y = y_vals)
-
-# TTT plot
-TTT2=ggplot(ttt_df, aes(x = x, y = y)) +
-  geom_step(direction = "hv") +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50") +
-  labs(
-    title = "Device G",
-    x = "Proportion of Failures (i/n)",
-    y = "TTT Transform"
-  ) +
-  theme_minimal()
-
-TTT2+df %>% ggplot(aes(x=time,y=hazard_rate,color=model))+geom_point()+df_t_grid %>% ggplot(aes(x=t_grid,h_exp))+geom_line()+geom_line(aes(x=t_grid,y=h_weib),color="red")
-
-c(mean_exp,mean_weib)
-mode_weib
-var_weib
-changePoint3
-
-
-
+########################## 
 
 
 
@@ -193,20 +100,21 @@ maxEMIter=1e+5
 maxIterAnnealing = 100
 
 annealingSchedule = seq(0.1,0.999999999,length.out=maxIterAnnealing) 
-bpBaseSchedule =exp(seq(log(1e+1), log(1e+7), length.out = maxIterAnnealing))
+bpBaseSchedule =exp(seq(log(1e-1), log(1e+5), length.out = maxIterAnnealing))
 
 ## result 기록 
 theta_df_full = NULL
 result_latentZ_mat = NULL
 ## initial Parameter : beta , lambda , pi
-initial_beta = c(1,30)
+# initial_beta = c(1,35)
+initial_beta = c(1,24)
 initial_pi_set = c(1,1)
 initial_pi = initial_pi_set / sum(initial_pi_set)
 
 initial_lambda = initial_lambda_func3(time_vec,event_vec,
-                                      initial_beta,ratio3=0.5)
+                                      initial_beta,ratio3=0.9)
 
-# initial_lambda = c(0.0101530363319033,5.10733273080284e-11)
+initial_lambda = c(0.01287726 ,3.066099e-69 )
 # 
 
 
@@ -315,12 +223,24 @@ plot(theta_df_full$diffBeta3 %>% abs)
 
 optData = theta_df_full[which.min(theta_df_full$diffBeta3 %>% abs),]
 optData
-trueDF
 
+trueDF = data.frame(beta2=1,lambda2=lambda_e ,beta3=shape_w,lambda3=lambda_w 
+                    ,pi2=n_const/(n_const+n_wear) , pi3= n_wear/(n_const+n_wear))
+trueDF
 
 df$hz2 = hazardrate(df$time,1,optData$lambda1)
 df$hz3 = hazardrate(df$time,optData$beta3,optData$lambda3)
 
-df %>% ggplot(aes(x=time,y=hazard_rate))+geom_point()+
-  geom_line(aes(y=hz2),color="blue")+geom_line(aes(y=hz3),color="red")
+df %>% ggplot(aes(x=time,y=hazard ))+geom_point()+
+  geom_line(aes(x=time,y=hz2),color="blue")+geom_line(aes(x=time,y=hz3),color="red")
+
+
+
+
+
+
+
+
+
+
 
