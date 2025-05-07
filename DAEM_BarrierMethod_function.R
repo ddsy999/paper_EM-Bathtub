@@ -541,8 +541,67 @@ generate_latentZ_mat = function(n, lambda = 1, scale_output = TRUE) {
 
 
 
+# compute_empirical_hazard <- function(df) {
+#   stopifnot(all(c("time", "event") %in% names(df)))
+#   
+#   # 시간 기준으로 정렬
+#   df <- df[order(df$time), ]
+#   
+#   # 고유한 고장 시간
+#   unique_times <- sort(unique(df$time[df$event == 1]))
+#   
+#   # 초기화
+#   hazard_data <- data.frame(
+#     time = unique_times,
+#     at_risk = NA,
+#     events = NA,
+#     hazard = NA
+#   )
+#   
+#   n <- nrow(df)
+#   
+#   for (i in seq_along(unique_times)) {
+#     t <- unique_times[i]
+#     
+#     # 위험 집단: 시간 t 이상인 사람들
+#     r_i <- sum(df$time >= t)
+#     
+#     # 사건 수: 정확히 시간 t에서 event == 1
+#     d_i <- sum(df$time == t & df$event == 1)
+#     
+#     # 위험률
+#     h_i <- d_i / r_i
+#     
+#     hazard_data$at_risk[i] <- r_i
+#     hazard_data$events[i] <- d_i
+#     hazard_data$hazard[i] <- h_i
+#   }
+#   
+#   return(hazard_data)
+# }
 
 
+
+compute_empirical_hazard_surv <- function(df) {
+  stopifnot(all(c("time", "event") %in% names(df)))
+  library(survival)
+  
+  # Surv 객체 생성
+  surv_obj <- Surv(time = df$time, event = df$event)
+  
+  # Kaplan-Meier 적합
+  fit <- survfit(surv_obj ~ 1)
+  
+  # at-risk 와 event 정보 추출
+  hazard_data <- data.frame(
+    time = fit$time,
+    at_risk = fit$n.risk,
+    events = fit$n.event,
+    hazard = fit$n.event / fit$n.risk
+  )
+  
+  return(hazard_data)
+}
 
 
 
