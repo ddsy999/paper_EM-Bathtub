@@ -588,19 +588,21 @@ compute_empirical_hazard_surv <- function(df) {
   
   # Surv 객체 생성
   surv_obj <- Surv(time = df$time, event = df$event)
-  
-  # Kaplan-Meier 적합
   fit <- survfit(surv_obj ~ 1)
   
-  # at-risk 와 event 정보 추출
-  hazard_data <- data.frame(
-    time = fit$time,
-    at_risk = fit$n.risk,
-    events = fit$n.event,
-    hazard = fit$n.event / fit$n.risk
-  )
+  # 시간과 누적 생존율
+  times <- fit$time
+  surv_probs <- fit$surv
   
-  return(hazard_data)
+  # 누적 hazard (대략적 추정)
+  cumhaz <- -log(surv_probs)
+  
+  # 시간 구간별 변화량
+  delta_time <- diff(c(0, times))
+  delta_hazard <- diff(c(0, cumhaz))
+  hazard_rate <- delta_hazard / delta_time 
+  
+  return(hazard_rate)
 }
 
 

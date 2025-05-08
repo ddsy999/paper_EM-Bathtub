@@ -4,64 +4,27 @@ source("DAEM_BarrierMethod_function.R")
 library(fitdistrplus)
 library(dplyr)
 n_total = 50
-n_const_prop = 0.8
+n_const_prop = 0.5
 n_wear_prop = 0.2
 n_const <- n_total*n_const_prop
 n_wear <- n_total*n_wear_prop
-shape_w = 40
-scale_w = 600
-lambda_w = scale_w^(-shape_w)
-lambda_e = 80
-time <- c(rweibull(n_const, shape = 1, scale = lambda_e),
+shape_w = 78
+lambda_w = 2.18e-151
+scale_w = lambda_w^(-1/shape_w)
+# lambda_w = scale_w^(-shape_w)
+lambda_e = 0.0252
+scale_e = 1/lambda_e
+time <- c(rweibull(n_const, shape = 1, scale = scale_e),
           rweibull(n_wear, shape = shape_w, scale = scale_w))
 event <- rep(1, length(time))
 df <- data.frame(time = time, event = event)
 df$distn = c(rep("exp",n_const),rep("wear",n_wear))
+wearMax =df %>% filter(distn=="wear") %>% pull(time) %>% max
+df = df %>% filter(time<wearMax)
 df = df %>% arrange(time)
-# 2. Weibull 분포 적합 (MLE 추정)
-fit <- fitdist(df$time, "weibull")
-shape_hat <- fit$estimate["shape"]
-scale_hat <- fit$estimate["scale"]
 
+df$hazard = compute_empirical_hazard_surv(df)
 
-# # Kaplan-Meier 적합
-# 2. Kaplan-Meier 적합
-km_fit <- survfit(Surv(time, event) ~ 1, data = df)
-
-# 3. KM 기반 hazard 계산 (사건 발생 시점에 대해서만)
-hazard_df <- data.frame(
-  time = km_fit$time,
-  n_risk = km_fit$n.risk,
-  n_event = km_fit$n.event
-) %>%
-  mutate(hazard_km = n_event / n_risk)
-
-df$hazard = hazard_df$hazard_km
-# 
-# df <- df %>%
-#   rowwise() %>%
-#   mutate(
-#     hazard = {
-#       idx <- max(which(time >= hazard_df$time))
-#       if (length(idx) == 0 || is.infinite(idx)) NA else hazard_df$hazard[idx]
-#     }
-#   )
-
-
-
-# 3. 분포 기반 hazard function 계산
-# Weibull의 hazard: h(t) = (β/λ) * (t/λ)^(β-1)
-# 2. Weibull 분포 적합 (MLE 추정)
-# fit <- fitdist(df$time, "weibull")
-# shape_hat <- fit$estimate["shape"]
-# scale_hat <- fit$estimate["scale"]
-
-# 3. 분포 기반 hazard function 계산
-# Weibull의 hazard: h(t) = (β/λ) * (t/λ)^(β-1)
-# df <- df %>%
-#   mutate(
-#     weibull_fit = (shape_hat / scale_hat) * (time / scale_hat)^(shape_hat - 1)
-#   )
 
 
 # hazard point plot
@@ -100,21 +63,21 @@ maxEMIter=1e+5
 maxIterAnnealing = 100
 
 annealingSchedule = seq(0.1,0.999999999,length.out=maxIterAnnealing) 
-bpBaseSchedule =exp(seq(log(1e-1), log(1e+5), length.out = maxIterAnnealing))
+bpBaseSchedule =exp(seq(log(1e-1), log(1e+7), length.out = maxIterAnnealing))
 
 ## result 기록 
 theta_df_full = NULL
 result_latentZ_mat = NULL
 ## initial Parameter : beta , lambda , pi
 # initial_beta = c(1,35)
-initial_beta = c(1,24)
+initial_beta = c(1,30)
 initial_pi_set = c(1,1)
 initial_pi = initial_pi_set / sum(initial_pi_set)
 
 initial_lambda = initial_lambda_func3(time_vec,event_vec,
                                       initial_beta,ratio3=0.9)
 
-initial_lambda = c(0.01287726 ,3.066099e-69 )
+# initial_lambda = c(0.01287726 ,3.066099e-69 )
 # 
 
 
@@ -233,11 +196,6 @@ df$hz3 = hazardrate(df$time,optData$beta3,optData$lambda3)
 
 df %>% ggplot(aes(x=time,y=hazard ))+geom_point()+
   geom_line(aes(x=time,y=hz2),color="blue")+geom_line(aes(x=time,y=hz3),color="red")
-
-
-
-
-
 
 
 
