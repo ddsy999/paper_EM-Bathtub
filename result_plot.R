@@ -1,8 +1,8 @@
 
 
 # roadResult = read.table("Proposed_Result_RearDump.txt")
-roadResult = read.table("Proposed_Result_Aarest_data.txt")
-# roadResult = read.table("Proposed_Result_FRT_censord.txt")
+# roadResult = read.table("Proposed_Result_Aarest_data.txt")
+roadResult = read.table("Proposed_Result_FRT_censord.txt")
 # roadResult = read.table("Proposed_Result_SerumReversal.txt")
 
 # roadResult = read.table("Proposed_Result_NoDAEM_Aarest_data.txt")
@@ -170,6 +170,7 @@ time_DBlist = seq(min(time_vec),max(time_vec),by=0.1)
 DBbound1 = DecisionBoundary(time_DBlist,beta_vec = c(optBeta1,1,optBeta3),lambda_vec = c(optLambda1,optLambda2,optLambda3),pi_vec=c(optPi1,optPi2,optPi3),j=1)
 DBbound3 = DecisionBoundary(time_DBlist,beta_vec = c(optBeta1,1,optBeta3),lambda_vec = c(optLambda1,optLambda2,optLambda3),pi_vec=c(optPi1,optPi2,optPi3),j=3)
 
+
 changePoint1 = time_DBlist[which.min(DBbound1>1)]
 changePoint3 = time_DBlist[which.min(DBbound3<1)]
 DBdata = data.frame(time = time_DBlist, postProbRatio1 =DBbound1, postProbRatio3 = DBbound3 )
@@ -180,9 +181,10 @@ DB1 = DBdata %>% ggplot(aes(x=time,y=postProbRatio1))+geom_line()+  theme_minima
     title = "Posterior Ratio (infant vs constant)",
     x = "",
     y = ""
-  )+ scale_y_continuous(
-    breaks = c(1,seq(2, 7, by = 5)) # y축 눈금을 5 단위로 설정
-  )+
+  )+ 
+  # scale_y_continuous(
+  #   breaks = c(1,seq(2, 7, by = 5)) # y축 눈금을 5 단위로 설정
+  # )+
   geom_point(data = data.frame(x = c(changePoint1), y = c(1)), aes(x = x, y = y), color = "blue", size = 3)
 DB3 = DBdata %>% ggplot(aes(x=time,y=postProbRatio3))+geom_line()+ 
   labs(
@@ -306,9 +308,9 @@ hz_resultPlot
 
 (DB1+DB3)/
 hazard_df %>% ggplot(aes(x=time,y=hazard))+geom_point(size=3,alpha=0.5)+geom_line(color="blue")+
-  annotate("text", x = changePoint1, y = 0.4,hjust=-0.2,label=paste0("Time :",changePoint1))+
-  annotate("text", x = changePoint3, y = 0.4,hjust=1.5,label=paste0("Time :",changePoint3))+
-  geom_vline(xintercept = changePoint1,lty=2,color="red")+
+  # annotate("text", x = changePoint1, y = 0.04,hjust=-0.2,label=paste0("Time :",changePoint1))+
+  annotate("text", x = changePoint3, y = 0.03,hjust=1.2,label=paste0("Time :",changePoint3))+
+  # geom_vline(xintercept = changePoint1,lty=2,color="red")+
   geom_vline(xintercept = changePoint3,lty=2,color="red")+
   labs(x="",y="",title="Empirical Hazard Rate")
 
